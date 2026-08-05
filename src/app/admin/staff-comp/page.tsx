@@ -1,0 +1,58 @@
+import { NavBar } from "@/components/nav-bar";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import { formatCurrency } from "@/lib/format";
+import { StaffCompForm } from "./staff-comp-form";
+
+export const dynamic = "force-dynamic";
+
+export default async function StaffCompPage() {
+  const { data: rows } = await supabaseAdmin()
+    .from("staff_compensation")
+    .select("id, staff_name, period, amount, status, notes")
+    .order("period", { ascending: false });
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <NavBar />
+      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
+        <h1 className="mb-6 text-2xl font-semibold">Staff Compensation</h1>
+
+        <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-5">
+          <StaffCompForm />
+        </div>
+
+        <div className="rounded-xl border border-neutral-200 bg-white p-5">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-neutral-200 text-left text-neutral-500">
+                <th className="py-2 font-medium">Staff</th>
+                <th className="py-2 font-medium">Period</th>
+                <th className="py-2 text-right font-medium">Amount</th>
+                <th className="py-2 font-medium">Status</th>
+                <th className="py-2 font-medium">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(rows ?? []).map((r) => (
+                <tr key={r.id} className="border-b border-neutral-100">
+                  <td className="py-2">{r.staff_name}</td>
+                  <td className="py-2">{r.period}</td>
+                  <td className="py-2 text-right">{formatCurrency(Number(r.amount))}</td>
+                  <td className="py-2 capitalize text-neutral-500">{r.status}</td>
+                  <td className="py-2 text-neutral-500">{r.notes}</td>
+                </tr>
+              ))}
+              {(rows ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-4 text-center text-neutral-400">
+                    No staff compensation records yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  );
+}
