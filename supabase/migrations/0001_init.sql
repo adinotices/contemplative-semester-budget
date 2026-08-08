@@ -145,7 +145,14 @@ create table if not exists budget_categories (
 -- Aggregated view for general (non-admin) /chat access — §7
 -- No names, no per-line detail: category totals only.
 -- ============================================================================
-create or replace view category_summary as
+-- security_invoker = false (the default) is deliberate here, not an oversight:
+-- Supabase's linter flags owner-privileged views as `security_definer_view`
+-- (0010) because it's usually a mistake, but this view exists specifically to
+-- run with the owner's privileges so it can bypass the admin-only RLS on
+-- `transactions` below and hand general-staff /chat category totals only.
+create or replace view category_summary
+  with (security_invoker = false)
+as
 select
   category,
   direction,
@@ -180,9 +187,11 @@ alter table students enable row level security;
 alter table budget_categories enable row level security;
 
 -- Helper: is the current JWT caller an admin?
+-- search_path pinned to prevent a caller-controlled search_path from
+-- shadowing auth.jwt() with a hostile function of the same name.
 create or replace function is_admin() returns boolean as $$
   select coalesce((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin', false);
-$$ language sql stable;
+$$ language sql stable set search_path = public, auth;
 
 -- team_members: admins can read/write; everyone authenticated can read their own row.
 create policy team_members_admin_all on team_members
