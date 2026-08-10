@@ -77,7 +77,10 @@ export default async function DashboardPage() {
                 </thead>
                 <tbody>
                   {budgetVsActual.map((row) => (
-                    <tr key={`${row.category}-${row.type}`} className="border-b border-neutral-100 dark:border-neutral-800">
+                    <tr
+                      key={`${row.category}-${row.type}`}
+                      className="border-b border-neutral-100 odd:bg-white even:bg-neutral-50 dark:border-neutral-800 dark:odd:bg-neutral-900 dark:even:bg-white/[0.03]"
+                    >
                       <td className="py-2 pr-3">{row.category}</td>
                       <td className="py-2 pr-3 capitalize text-neutral-500 dark:text-neutral-400">{row.type}</td>
                       <td className="py-2 pr-3 text-right">
@@ -168,7 +171,10 @@ function CategoryBreakdownTable({ rows, emptyMessage }: { rows: CategoryBreakdow
       </thead>
       <tbody>
         {rows.map((row) => (
-          <tr key={row.category} className="border-b border-neutral-100 dark:border-neutral-800">
+          <tr
+            key={row.category}
+            className="border-b border-neutral-100 odd:bg-white even:bg-neutral-50 dark:border-neutral-800 dark:odd:bg-neutral-900 dark:even:bg-white/[0.03]"
+          >
             <td className="py-2 pr-3">{row.category}</td>
             <td className="py-2 text-right">{formatCurrency(row.total)}</td>
           </tr>

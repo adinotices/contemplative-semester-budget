@@ -31,7 +31,10 @@ export default async function StaffCompPage() {
             </thead>
             <tbody>
               {(rows ?? []).map((r) => (
-                <tr key={r.id} className="border-b border-neutral-100 dark:border-neutral-800">
+                <tr
+                  key={r.id}
+                  className="border-b border-neutral-100 odd:bg-white even:bg-neutral-50 dark:border-neutral-800 dark:odd:bg-neutral-900 dark:even:bg-white/[0.03]"
+                >
                   <td className="py-2 pr-3">{r.staff_name}</td>
                   <td className="py-2 pr-3">{r.period}</td>
                   <td className="py-2 pr-3 text-right">{formatCurrency(Number(r.amount))}</td>
