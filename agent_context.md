@@ -157,10 +157,33 @@ touch it.
   architecture doc); Aditya says he often has to follow up with her
   repeatedly to get exports
 
-**Still not provisioned**: no Twilio account (the in-session Twilio MCP
-connector is docs-only, not tied to a real account). Until that's set, the
-WhatsApp bot won't function. Everything else — dashboard, chat, sign-in,
-reimbursement/approval/digest emails — is now fully live.
+**Twilio**: trial account connected (`TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN`
+verified against `GET /2010-04-01/Accounts/{sid}.json`, set on Vercel).
+Using the **WhatsApp Sandbox** for now (user chose sandbox-first over a
+production sender, which needs a Meta Business Manager account they don't
+have connected yet). `TWILIO_WHATSAPP_NUMBER` set to the standard shared
+sandbox number `whatsapp:+14155238886` — this isn't actually read by app
+code (only `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` are, for signature
+verification and media download), it's informational only.
+
+Two things only the user can do (no API — Twilio's WhatsApp Sandbox config
+is Console-UI-only, confirmed via a 404 on `.../Sandbox.json`):
+1. Text the sandbox's join code to `+1 415 523 8886` from WhatsApp to
+   activate (expires ~72h, needs re-joining periodically — the sandbox's
+   main limitation, hence "sandbox first" rather than jumping straight to
+   production).
+2. Set the sandbox's "when a message comes in" webhook to
+   `https://contemplative-semester-budget.vercel.app/api/whatsapp/webhook`
+   (POST) in the Console.
+
+Not yet confirmed whether either of those happened — next session should
+check before assuming the bot is reachable. Upgrading to a real WhatsApp
+Business sender (matches the architecture doc's original intent) is a
+later step once the sandbox flow is proven out; needs a Meta Business
+Manager account connected on Twilio's end.
+
+Everything else — dashboard, chat, sign-in, reimbursement/approval/digest
+emails — is fully live.
 
 ### Known env values (safe to reuse)
 ```
