@@ -22,20 +22,20 @@ export default async function StaffCompPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-                <th className="py-2 font-medium">Staff</th>
-                <th className="py-2 font-medium">Period</th>
-                <th className="py-2 text-right font-medium">Amount</th>
-                <th className="py-2 font-medium">Status</th>
+                <th className="py-2 pr-3 font-medium">Staff</th>
+                <th className="py-2 pr-3 font-medium">Period</th>
+                <th className="py-2 pr-3 text-right font-medium">Amount</th>
+                <th className="py-2 pr-3 font-medium">Status</th>
                 <th className="py-2 font-medium">Notes</th>
               </tr>
             </thead>
             <tbody>
               {(rows ?? []).map((r) => (
                 <tr key={r.id} className="border-b border-neutral-100 dark:border-neutral-800">
-                  <td className="py-2">{r.staff_name}</td>
-                  <td className="py-2">{r.period}</td>
-                  <td className="py-2 text-right">{formatCurrency(Number(r.amount))}</td>
-                  <td className="py-2 capitalize text-neutral-500 dark:text-neutral-400">{r.status}</td>
+                  <td className="py-2 pr-3">{r.staff_name}</td>
+                  <td className="py-2 pr-3">{r.period}</td>
+                  <td className="py-2 pr-3 text-right">{formatCurrency(Number(r.amount))}</td>
+                  <td className="py-2 pr-3 capitalize text-neutral-500 dark:text-neutral-400">{r.status}</td>
                   <td className="py-2 text-neutral-500 dark:text-neutral-400">{r.notes}</td>
                 </tr>
               ))}

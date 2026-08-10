@@ -114,16 +114,16 @@ export default async function DashboardPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-                  <th className="py-2 font-medium">Category</th>
-                  <th className="py-2 font-medium">Direction</th>
+                  <th className="py-2 pr-3 font-medium">Category</th>
+                  <th className="py-2 pr-3 font-medium">Direction</th>
                   <th className="py-2 text-right font-medium">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {breakdown.map((row) => (
                   <tr key={`${row.category}-${row.direction}`} className="border-b border-neutral-100 dark:border-neutral-800">
-                    <td className="py-2">{row.category}</td>
-                    <td className="py-2 capitalize text-neutral-500 dark:text-neutral-400">{row.direction}</td>
+                    <td className="py-2 pr-3">{row.category}</td>
+                    <td className="py-2 pr-3 capitalize text-neutral-500 dark:text-neutral-400">{row.direction}</td>
                     <td className="py-2 text-right">{formatCurrency(row.total)}</td>
                   </tr>
                 ))}
