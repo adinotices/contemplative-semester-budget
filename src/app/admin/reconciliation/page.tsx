@@ -29,8 +29,7 @@ export default async function ReconciliationPage() {
   const unmatchedTx = (transactions ?? []).filter((t) => !matchedTxIds.has(t.id));
   const unmatchedBcbs = (bcbsTransactions ?? []).filter((b) => !matchedBcbsIds.has(b.id));
 
-  const incomeGap = summary.internal.totalIncome - summary.bcbsInRange.totalIncome;
-  const expenseGap = summary.internal.totalExpense - summary.bcbsInRange.totalExpense;
+  const { accrual } = summary;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -39,21 +38,35 @@ export default async function ReconciliationPage() {
         <DashboardTabs />
         <h1 className="mb-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Reconciliation</h1>
         <p className="mb-6 text-sm text-neutral-500 dark:text-neutral-400">
-          Internal ledger vs. BCBS export (Bill.com + Fidelity Checking cash activity).
+          Internal ledger vs. BCBS&apos;s full Contemplative Semester books (not just cash accounts).
         </p>
 
         {/* Top: merged discrepancy panel */}
         <section className="mb-6 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
           <h2 className="mb-1 text-lg font-medium text-neutral-900 dark:text-neutral-50">Discrepancy</h2>
           <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-400">
-            BCBS activity restricted to {formatDate(summary.internal.earliestDate)}–today (the internal ledger&apos;s
-            own date range) so the two sides are comparable. {summary.matchedCount} of {summary.bcbsCount} BCBS
-            lines have been matched to a specific internal transaction so far.
+            {formatDate(accrual.windowStart)}–{formatDate(accrual.windowEnd)}: our cash-basis ledger (money actually
+            received/paid) vs. BCBS&apos;s accrual-basis P&amp;L for Contemplative Semester (revenue/expense
+            recognized when earned, e.g. tuition booked in full at enrollment — not when cash moves). Most of this
+            gap is timing, not missing money.
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <GapCard label="Income Gap (Internal − BCBS)" value={incomeGap} />
-            <GapCard label="Expense Gap (Internal − BCBS)" value={expenseGap} />
+            <GapCard
+              label="Income Gap (Internal cash − BCBS accrual)"
+              value={accrual.incomeGap}
+              detail={`${formatCurrency(accrual.internalIncome)} vs ${formatCurrency(accrual.bcbsIncome)}`}
+            />
+            <GapCard
+              label="Expense Gap (Internal cash − BCBS accrual)"
+              value={accrual.expenseGap}
+              detail={`${formatCurrency(accrual.internalExpense)} vs ${formatCurrency(accrual.bcbsExpense)}`}
+            />
           </div>
+          <p className="mt-4 text-xs text-neutral-400 dark:text-neutral-500">
+            Separately, on a pure cash basis restricted to the internal ledger&apos;s own date range,{" "}
+            {summary.matchedCount} of {summary.bcbsCount} BCBS cash-account lines have been matched to a specific
+            internal transaction so far (see Unmatched detail below).
+          </p>
         </section>
 
         {/* Bottom-left / bottom-right */}
@@ -83,17 +96,25 @@ export default async function ReconciliationPage() {
               BCBS High Level Numbers
             </h2>
             <dl className="space-y-3">
-              <StatRow label="Total Income" value={formatCurrency(summary.bcbs.totalIncome)} />
-              <StatRow label="Total Expense" value={formatCurrency(summary.bcbs.totalExpense)} />
               <StatRow
-                label="Net Movement"
-                value={formatCurrency(summary.bcbs.net)}
-                highlight={summary.bcbs.net >= 0 ? "positive" : "negative"}
+                label="Money in the Bank (BCBS balance sheet)"
+                value={formatCurrency(summary.balanceSheetCash.amount)}
+                highlight="positive"
               />
+              <StatRow label="Accrual Total Income (P&L)" value={formatCurrency(accrual.bcbsIncome)} />
+              <StatRow label="Accrual Total Expense (P&L)" value={formatCurrency(accrual.bcbsExpense)} />
             </dl>
-            <p className="mt-4 text-xs text-neutral-400 dark:text-neutral-500">
-              {formatDate(summary.bcbs.earliestDate)} – {formatDate(summary.bcbs.latestDate)} (all-time) ·{" "}
-              {summary.bcbsCount} lines, Bill.com + Fidelity Checking
+            <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
+              Money in the bank as of {formatDate(summary.balanceSheetCash.asOf)} (BCBS balance sheet). Accrual P&amp;L
+              covers {formatDate(accrual.windowStart)}–{formatDate(accrual.windowEnd)}.
+            </p>
+            <dl className="mt-4 space-y-3 border-t border-neutral-100 pt-4 dark:border-neutral-800">
+              <StatRow label="Cash-Account Income (all-time)" value={formatCurrency(summary.bcbs.totalIncome)} />
+              <StatRow label="Cash-Account Expense (all-time)" value={formatCurrency(summary.bcbs.totalExpense)} />
+            </dl>
+            <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
+              {formatDate(summary.bcbs.earliestDate)} – {formatDate(summary.bcbs.latestDate)} · {summary.bcbsCount}{" "}
+              lines, Bill.com + Fidelity Checking only
             </p>
           </div>
         </div>
@@ -136,13 +157,14 @@ function StatRow({
   );
 }
 
-function GapCard({ label, value }: { label: string; value: number }) {
+function GapCard({ label, value, detail }: { label: string; value: number; detail?: string }) {
   const isZero = Math.abs(value) < 0.5;
   const color = isZero ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400";
   return (
     <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-800/50">
       <p className="text-sm text-neutral-500 dark:text-neutral-400">{label}</p>
       <p className={`mt-1 text-2xl font-semibold ${color}`}>{formatCurrency(value)}</p>
+      {detail && <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">{detail}</p>}
     </div>
   );
 }

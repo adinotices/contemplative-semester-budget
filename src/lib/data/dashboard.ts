@@ -192,11 +192,31 @@ export interface ReconciliationSummary {
     earliestDate: string | null;
     latestDate: string | null;
   };
-  /** BCBS totals restricted to the internal ledger's own date range, for an apples-to-apples comparison. */
+  /** BCBS cash-account totals restricted to the internal ledger's own date range, for an apples-to-apples comparison. */
   bcbsInRange: {
     totalIncome: number;
     totalExpense: number;
     net: number;
+  };
+  /**
+   * BCBS's full accrual-basis P&L for Contemplative Semester (not just the 2
+   * cash accounts) vs. the internal cash-basis ledger, over the window where
+   * we have both. See BCBS_ACCRUAL_* below for sourcing.
+   */
+  accrual: {
+    windowStart: string;
+    windowEnd: string;
+    internalIncome: number;
+    internalExpense: number;
+    bcbsIncome: number;
+    bcbsExpense: number;
+    incomeGap: number;
+    expenseGap: number;
+  };
+  /** BCBS's own balance sheet — cash actually sitting in the CS-restricted fund, per BCBS's books. */
+  balanceSheetCash: {
+    amount: number;
+    asOf: string;
   };
   matchedCount: number;
   bcbsCount: number;
@@ -208,17 +228,61 @@ function isBcbsIncome(description: string): boolean {
   return description.includes("Receive Money");
 }
 
+/**
+ * BCBS's own books recognize Contemplative Semester revenue/expense on an
+ * accrual basis (e.g. tuition is recognized in full at enrollment, not as
+ * cash trickles in), while this ledger is strictly cash-basis (status =
+ * 'actual' means cash actually received/paid). These figures come straight
+ * from BCBS's official financials, not any table in this database — the
+ * only way to see BCBS's full Contemplative-Semester-scoped P&L for periods
+ * we haven't imported line-by-line:
+ *  - 2025 portion: computed from BCBS's General Ledger Detail export
+ *    (Nov 2023–Apr 30 2026) by summing BCBS's 9 income/expense-recognition
+ *    accounts for Contemplative Semester over 2025-01-23–2025-12-31.
+ *    Verified to reconcile exactly against BCBS's official lifetime P&L.
+ *  - 2026 portion: BCBS's own "Location: Contemplative Semester" P&L
+ *    summary for 2026 YTD, emailed by Melissa Gopnik on 2026-07-22 —
+ *    accurate as of that date.
+ */
+const BCBS_ACCRUAL_WINDOW_START = "2025-01-23";
+const BCBS_ACCRUAL_WINDOW_END = "2026-07-22";
+const BCBS_ACCRUAL_2025 = { income: 291841.14, expense: 177708.04 };
+const BCBS_ACCRUAL_2026_YTD = { income: 700860.46, expense: 583543.54 };
+const BCBS_ACCRUAL = {
+  income: BCBS_ACCRUAL_2025.income + BCBS_ACCRUAL_2026_YTD.income,
+  expense: BCBS_ACCRUAL_2025.expense + BCBS_ACCRUAL_2026_YTD.expense,
+};
+
+/**
+ * BCBS's balance sheet snapshot of actual cash held in the CS-restricted
+ * fund, from the lifetime P&L export's Balance Sheet section.
+ */
+const BCBS_BALANCE_SHEET_CASH = 90453.73;
+const BCBS_BALANCE_SHEET_ASOF = "2026-04-30";
+
 export async function getReconciliationSummary(): Promise<ReconciliationSummary> {
   const db = supabaseAdmin();
-  const [{ data: txns, error: txErr }, { data: bcbs, error: bcbsErr }, { count: matchedCount }, startingBalance] =
-    await Promise.all([
-      db.from("transactions").select("date, direction, amount").eq("status", "actual"),
-      db.from("bcbs_transactions").select("date, description, amount"),
-      db.from("reconciliation_matches").select("id", { count: "exact", head: true }).eq("status", "matched"),
-      getOrgSetting("starting_balance"),
-    ]);
+  const [
+    { data: txns, error: txErr },
+    { data: bcbs, error: bcbsErr },
+    { count: matchedCount },
+    startingBalance,
+    { data: accrualWindowTxns, error: accrualWindowErr },
+  ] = await Promise.all([
+    db.from("transactions").select("date, direction, amount").eq("status", "actual"),
+    db.from("bcbs_transactions").select("date, description, amount"),
+    db.from("reconciliation_matches").select("id", { count: "exact", head: true }).eq("status", "matched"),
+    getOrgSetting("starting_balance"),
+    db
+      .from("transactions")
+      .select("direction, amount")
+      .eq("status", "actual")
+      .gte("date", BCBS_ACCRUAL_WINDOW_START)
+      .lte("date", BCBS_ACCRUAL_WINDOW_END),
+  ]);
   if (txErr) throw txErr;
   if (bcbsErr) throw bcbsErr;
+  if (accrualWindowErr) throw accrualWindowErr;
 
   const txRows = txns ?? [];
   const bcbsRows = bcbs ?? [];
@@ -249,6 +313,13 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
     }
   }
 
+  let internalAccrualWindowIncome = 0;
+  let internalAccrualWindowExpense = 0;
+  for (const t of accrualWindowTxns ?? []) {
+    if (t.direction === "income") internalAccrualWindowIncome += Number(t.amount);
+    else internalAccrualWindowExpense += Number(t.amount);
+  }
+
   return {
     internal: {
       startingBalance,
@@ -269,6 +340,20 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
       totalIncome: bcbsIncomeInRange,
       totalExpense: bcbsExpenseInRange,
       net: bcbsIncomeInRange - bcbsExpenseInRange,
+    },
+    accrual: {
+      windowStart: BCBS_ACCRUAL_WINDOW_START,
+      windowEnd: BCBS_ACCRUAL_WINDOW_END,
+      internalIncome: internalAccrualWindowIncome,
+      internalExpense: internalAccrualWindowExpense,
+      bcbsIncome: BCBS_ACCRUAL.income,
+      bcbsExpense: BCBS_ACCRUAL.expense,
+      incomeGap: internalAccrualWindowIncome - BCBS_ACCRUAL.income,
+      expenseGap: internalAccrualWindowExpense - BCBS_ACCRUAL.expense,
+    },
+    balanceSheetCash: {
+      amount: BCBS_BALANCE_SHEET_CASH,
+      asOf: BCBS_BALANCE_SHEET_ASOF,
     },
     matchedCount: matchedCount ?? 0,
     bcbsCount: bcbsRows.length,
