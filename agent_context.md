@@ -90,10 +90,38 @@ Removed the dark-mode override (app is a fixed light theme by design) and
 added explicit `text-neutral-900` to headings that had been relying on
 inherited color.
 
-**Still not provisioned**: no Resend account/domain, no Twilio account
-(the in-session Twilio MCP connector is docs-only, not tied to a real
-account). Until these are set, the weekly digest/accountant emails and the
-WhatsApp bot won't function, though everything else now works end-to-end.
+**Resend**: account created (`resend.com.user967@passmail.net`), full-access
+key obtained, `RESEND_API_KEY` / `APPROVER_EMAIL` / `ACCOUNTANT_EMAILS` set
+on Vercel. Domain `contemplativesemester.org` added via API
+(id `1936750a-4fea-4bcb-8e13-fa5880542163`) but **not yet verified** —
+status was `not_started` as of last check. DNS records needed (given to
+user, not yet confirmed added):
+```
+TXT  resend._domainkey  p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCxEv75XIT7goXpHfe9DMvy16/39IYGyUP0jbJ+Ji7OTjI8FWqenQoV6t6gHhV98hCIyPXqBSbfLXZiYhXsp18F1+TNigHLmzE3Id9wBSB/N5ClaQt8cBw91gZr3gdSfexiNTJW2DcuDYivVKlmjlNsWnF+D8R9ymrMFnxzLnWpTwIDAQAB
+MX   send               feedback-smtp.us-east-1.amazonses.com  (priority 10)
+TXT  send               v=spf1 include:amazonses.com ~all
+```
+Check status: `GET https://api.resend.com/domains/1936750a-4fea-4bcb-8e13-fa5880542163`
+with the full-access key. Until `status` flips to `verified`, sends from
+`budget@contemplativesemester.org` will fail even though the API key and
+app code are otherwise ready. Note: there's also an unrelated Resend
+account/domain (`samvara.app`, different project) that came up during
+setup — don't touch it.
+
+**Real people, for context**:
+- `Jaycel.Arcedera@npcm.com` — accountant who processes reimbursements/invoices; `ACCOUNTANT_EMAILS` recipient
+- `maya@contemplativesemester.org` — team member, seeded as `admin` in
+  `team_members`; also cc'd via `ACCOUNTANT_EMAILS` since she's cc'd on
+  reimbursements/invoices to Jaycel today
+- `meredith.donaldson@npcm.com` — provides BCBS's internal numbers for
+  Phase 5 reconciliation (the "Meredith" referenced throughout the
+  architecture doc); Aditya says he often has to follow up with her
+  repeatedly to get exports
+
+**Still not provisioned**: no Twilio account (the in-session Twilio MCP
+connector is docs-only, not tied to a real account). Until that's set, the
+WhatsApp bot won't function. The weekly digest/accountant email pipeline is
+fully wired now — just waiting on Resend domain DNS verification.
 
 ### Known env values (safe to reuse)
 ```
@@ -115,10 +143,11 @@ purely provisioning two more services.
 
 ## 4. Next steps, roughly in order
 
-1. **Resend**: create account, verify a sending domain, get `RESEND_API_KEY`,
-   set `EMAIL_FROM`, `APPROVER_EMAIL` (Aditya), `ACCOUNTANT_EMAILS`
-   (Jaycel/Melissa) on Vercel, then redeploy (see the pattern note in §2 —
-   env var changes need a fresh deployment to take effect).
+1. **Resend domain verification**: confirm the DNS records above got added,
+   then poll `GET /domains/1936750a-4fea-4bcb-8e13-fa5880542163` until
+   `status: "verified"`. `EMAIL_FROM` isn't set on Vercel yet either —
+   default is `budget@contemplativesemester.org` per `lib/email/resend.ts`,
+   set it explicitly once the domain verifies, then redeploy.
 2. **Twilio WhatsApp**: provision a WhatsApp Business API number (the Twilio
    MCP connector in-session is authless/docs-only — it can look up API
    references but can't provision anything; you need real Account SID/Auth
