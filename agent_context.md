@@ -159,6 +159,25 @@ the xlsx exactly.
 - Verified: `npm run lint` and `npm run build` clean, deployed
   (`dpl_FvzeEhvmRzKqPmboXpJm5sBMzrw5`, commit `686f292`), no runtime errors.
 
+## 2d. Admin nav restructured as Dashboard sub-tabs; manual entry removed (2026-08-10)
+
+Per explicit request: dropped the top-level "Admin" nav item. Categories,
+Staff Compensation, and Reconciliation are now shown as sub-tabs under
+Dashboard (admin-only), via `src/components/dashboard-tabs.tsx` (server,
+checks `session.user.role === "admin"`) wrapping
+`dashboard-tabs-client.tsx` (client, `usePathname()`-based active-tab
+styling). `/admin` now redirects to `/admin/categories` — routes,
+middleware gating (`ADMIN_PREFIXES` in `src/proxy.ts`), and RLS are
+unchanged, only the nav UI moved.
+
+Also removed the manual data-entry UI from all three admin sub-pages (add
+category form, add staff-comp form, manual reconciliation match form) —
+this data now comes from the ledger import, not hand entry. Deleted the
+now-unreachable `src/app/api/admin/*` routes those forms posted to and
+`src/lib/require-admin.ts` (only consumer was those routes). Reconciliation
+still shows the unmatched-transactions tables read-only; matching itself
+would need a new UI if wanted again later.
+
 ## 2. Infrastructure — provisioned so far
 
 **Supabase** (via Supabase MCP connector):
