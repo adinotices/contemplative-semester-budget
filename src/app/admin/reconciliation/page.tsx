@@ -62,6 +62,27 @@ export default async function ReconciliationPage() {
               detail={`${formatCurrency(accrual.internalExpense)} vs ${formatCurrency(accrual.bcbsExpense)}`}
             />
           </div>
+
+          <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-800/50">
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              Fund Balance Gap at {formatDate(summary.fundBalance.asOf)} (Internal − BCBS)
+            </p>
+            <p
+              className={`mt-1 text-2xl font-semibold ${
+                Math.abs(summary.fundBalance.gap) < 0.5
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-amber-600 dark:text-amber-400"
+              }`}
+            >
+              {formatCurrency(summary.fundBalance.gap)}
+            </p>
+            <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">
+              {formatCurrency(summary.fundBalance.internal)} in this ledger vs{" "}
+              {formatCurrency(summary.fundBalance.bcbsRestrictedFund)} in BCBS&apos;s restricted fund — the one date
+              both sets of books cover. This is the most directly comparable pair of numbers on the page; the two
+              gaps above are cash-basis vs accrual-basis and are expected to differ.
+            </p>
+          </div>
           <p className="mt-4 text-xs text-neutral-400 dark:text-neutral-500">
             Separately, on a pure cash basis restricted to the internal ledger&apos;s own date range,{" "}
             {summary.matchedCount} of {summary.bcbsCount} BCBS cash-account lines have been matched to a specific
@@ -97,16 +118,17 @@ export default async function ReconciliationPage() {
             </h2>
             <dl className="space-y-3">
               <StatRow
-                label="Money in the Bank (BCBS balance sheet)"
-                value={formatCurrency(summary.balanceSheetCash.amount)}
-                highlight="positive"
+                label={`Restricted Fund Balance (${formatDate(summary.fundBalance.asOf)})`}
+                value={formatCurrency(summary.fundBalance.bcbsRestrictedFund)}
               />
               <StatRow label="Accrual Total Income (P&L)" value={formatCurrency(accrual.bcbsIncome)} />
               <StatRow label="Accrual Total Expense (P&L)" value={formatCurrency(accrual.bcbsExpense)} />
             </dl>
             <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
-              Money in the bank as of {formatDate(summary.balanceSheetCash.asOf)} (BCBS balance sheet). Accrual P&amp;L
-              covers {formatDate(accrual.windowStart)}–{formatDate(accrual.windowEnd)}.
+              Fund balance is BCBS&apos;s closing balance on &ldquo;Temporarily Restricted Fund: Contemplative
+              Semester&rdquo; at {formatDate(summary.fundBalance.asOf)}, where their general ledger ends. BCBS&apos;s
+              books hold no cash-in-bank figure scoped to this program. Accrual P&amp;L covers{" "}
+              {formatDate(accrual.windowStart)}–{formatDate(accrual.windowEnd)}.
             </p>
             <dl className="mt-4 space-y-3 border-t border-neutral-100 pt-4 dark:border-neutral-800">
               <StatRow label="Cash-Account Income (all-time)" value={formatCurrency(summary.bcbs.totalIncome)} />

@@ -207,10 +207,16 @@ export interface ReconciliationSummary {
     incomeGap: number;
     expenseGap: number;
   };
-  /** BCBS's own balance sheet — cash actually sitting in the CS-restricted fund, per BCBS's books. */
-  balanceSheetCash: {
-    amount: number;
+  /**
+   * Fund balance at the one date both sets of books cover. This replaces an
+   * earlier "money in the bank" card that misread BCBS's accumulated net
+   * assets as cash — see BCBS_RESTRICTED_FUND below.
+   */
+  fundBalance: {
     asOf: string;
+    internal: number;
+    bcbsRestrictedFund: number;
+    gap: number;
   };
   matchedCount: number;
   bcbsCount: number;
@@ -248,11 +254,21 @@ const BCBS_ACCRUAL = {
 };
 
 /**
- * BCBS's balance sheet snapshot of actual cash held in the CS-restricted
- * fund, from the lifetime P&L export's Balance Sheet section.
+ * BCBS's closing balance on account `2827 - Temporarily Restricted Fund:
+ * Contemplative Semester` in the General Ledger Detail export, which ends
+ * 2026-04-30. This is the closest thing BCBS's books offer to "what the
+ * program has", and 2026-04-30 is the only date both sets of books cover.
+ *
+ * DO NOT substitute the lifetime P&L's "Balance Sheet" figures here. Those
+ * three lines (Restricted Contemplative Semester 90,453.73 + Restricted
+ * College Accreditation 30,305.00 + Unrestricted 215,009.84) sum to exactly
+ * 335,768.57 — the lifetime Net Income — because they partition accumulated
+ * net income by fund class. They are not cash. An earlier version of this
+ * page showed the 90,453.73 as "Money in the Bank (BCBS balance sheet)",
+ * which was wrong.
  */
-const BCBS_BALANCE_SHEET_CASH = 90453.73;
-const BCBS_BALANCE_SHEET_ASOF = "2026-04-30";
+const BCBS_RESTRICTED_FUND = 192567.71;
+const BCBS_RESTRICTED_FUND_ASOF = "2026-04-30";
 
 export async function getReconciliationSummary(): Promise<ReconciliationSummary> {
   const db = supabaseAdmin();
@@ -262,6 +278,7 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
     { count: matchedCount },
     startingBalance,
     { data: accrualWindowTxns, error: accrualWindowErr },
+    { data: asOfTxns, error: asOfErr },
   ] = await Promise.all([
     db.from("transactions").select("date, direction, amount").eq("status", "actual"),
     db.from("bcbs_transactions").select("date, description, amount"),
@@ -273,10 +290,16 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
       .eq("status", "actual")
       .gte("date", BCBS_ACCRUAL_WINDOW_START)
       .lte("date", BCBS_ACCRUAL_WINDOW_END),
+    db
+      .from("transactions")
+      .select("direction, amount")
+      .eq("status", "actual")
+      .lte("date", BCBS_RESTRICTED_FUND_ASOF),
   ]);
   if (txErr) throw txErr;
   if (bcbsErr) throw bcbsErr;
   if (accrualWindowErr) throw accrualWindowErr;
+  if (asOfErr) throw asOfErr;
 
   const txRows = txns ?? [];
   const bcbsRows = bcbs ?? [];
@@ -307,6 +330,16 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
     else internalAccrualWindowExpense += Number(t.amount);
   }
 
+  // Our own position as of the date BCBS's ledger stops, so the two sides
+  // describe the same moment.
+  let asOfIncome = 0;
+  let asOfExpense = 0;
+  for (const t of asOfTxns ?? []) {
+    if (t.direction === "income") asOfIncome += Number(t.amount);
+    else asOfExpense += Number(t.amount);
+  }
+  const internalAtAsOf = startingBalance + asOfIncome - asOfExpense;
+
   return {
     internal: {
       startingBalance,
@@ -333,9 +366,11 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
       incomeGap: internalAccrualWindowIncome - BCBS_ACCRUAL.income,
       expenseGap: internalAccrualWindowExpense - BCBS_ACCRUAL.expense,
     },
-    balanceSheetCash: {
-      amount: BCBS_BALANCE_SHEET_CASH,
-      asOf: BCBS_BALANCE_SHEET_ASOF,
+    fundBalance: {
+      asOf: BCBS_RESTRICTED_FUND_ASOF,
+      internal: internalAtAsOf,
+      bcbsRestrictedFund: BCBS_RESTRICTED_FUND,
+      gap: internalAtAsOf - BCBS_RESTRICTED_FUND,
     },
     matchedCount: matchedCount ?? 0,
     bcbsCount: bcbsRows.length,

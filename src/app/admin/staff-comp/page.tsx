@@ -54,19 +54,63 @@ function groupStaffComp(rows: StaffCompRow[]): StaffCompGroup[] {
 }
 
 export default async function StaffCompPage() {
-  const { data: rows } = await supabaseAdmin()
-    .from("staff_compensation")
-    .select("id, staff_name, period, amount, notes")
-    .order("staff_name");
+  const db = supabaseAdmin();
+  const [{ data: rows }, { data: ledger }] = await Promise.all([
+    db.from("staff_compensation").select("id, staff_name, period, amount, notes").order("staff_name"),
+    db.from("transactions").select("status, amount").eq("category", "Compensation"),
+  ]);
 
   const groups = groupStaffComp(rows ?? []);
+
+  // This table and the Compensation line on Budget vs. Actual describe the
+  // same money from two tables, and they silently drifted apart once before
+  // (staff_compensation was a frozen snapshot while transactions kept being
+  // imported). Compare them on every render so a future drift is visible
+  // here instead of being discovered by someone reconciling by hand.
+  const totals = groups.reduce(
+    (acc, g) => ({ actual: acc.actual + g.actual, projected: acc.projected + g.projected }),
+    { actual: 0, projected: 0 },
+  );
+  const ledgerTotals = (ledger ?? []).reduce(
+    (acc, t) => {
+      const amount = Number(t.amount);
+      if (t.status === "projected") acc.projected += amount;
+      else acc.actual += amount;
+      return acc;
+    },
+    { actual: 0, projected: 0 },
+  );
+  const drift = {
+    actual: totals.actual - ledgerTotals.actual,
+    projected: totals.projected - ledgerTotals.projected,
+  };
+  const inSync = Math.abs(drift.actual) < 0.005 && Math.abs(drift.projected) < 0.005;
 
   return (
     <div className="flex min-h-screen flex-col">
       <NavBar />
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
         <DashboardTabs />
-        <h1 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Staff Compensation</h1>
+        <h1 className="mb-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Staff Compensation</h1>
+
+        {inSync ? (
+          <p className="mb-6 text-sm text-neutral-500 dark:text-neutral-400">
+            Totals agree with the Compensation line in the ledger ({formatCurrency(totals.actual)} actual,{" "}
+            {formatCurrency(totals.projected)} projected).
+          </p>
+        ) : (
+          <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40">
+            <p className="font-medium text-amber-900 dark:text-amber-200">
+              This table disagrees with the Compensation line in the ledger.
+            </p>
+            <p className="mt-1 text-amber-800 dark:text-amber-300">
+              Actual: {formatCurrency(totals.actual)} here vs {formatCurrency(ledgerTotals.actual)} in the ledger (
+              {formatCurrency(drift.actual)}). Projected: {formatCurrency(totals.projected)} vs{" "}
+              {formatCurrency(ledgerTotals.projected)} ({formatCurrency(drift.projected)}). Budget vs. Actual uses the
+              ledger figure, so that one is authoritative until this table is brought back in line.
+            </p>
+          </div>
+        )}
 
         <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
           <table className="w-full text-sm">
