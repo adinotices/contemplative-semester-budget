@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
+import { ThemeToggle } from "./theme-toggle";
 
 export async function NavBar() {
   const session = await auth();
@@ -32,6 +33,7 @@ export async function NavBar() {
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm text-neutral-500 dark:text-neutral-400">
+          <ThemeToggle />
           <span>{session.user.email}</span>
           <form
             action={async () => {

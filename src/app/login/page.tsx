@@ -1,4 +1,5 @@
 import { signIn } from "@/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function LoginPage({
   searchParams,
@@ -8,7 +9,10 @@ export default async function LoginPage({
   const { callbackUrl } = await searchParams;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-neutral-950">
+    <div className="relative flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-neutral-950">
+      <div className="fixed right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm rounded-xl border border-neutral-200 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
         <h1 className="mb-1 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
           Contemplative Semester Budget
