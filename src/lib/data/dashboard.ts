@@ -6,11 +6,20 @@ export interface CashPosition {
   netCash: number;
 }
 
+export interface ProjectedTotals {
+  projectedIncome: number;
+  projectedExpense: number;
+  projectedNet: number;
+  projectedEndingBalance: number;
+}
+
 export interface CategoryActual {
   category: string;
   type: "income" | "expense";
   budgetTarget: number;
   actual: number;
+  projected: number;
+  total: number;
   variance: number;
 }
 
@@ -21,7 +30,10 @@ export interface CategoryActual {
  */
 export async function getCashPosition(): Promise<CashPosition> {
   const db = supabaseAdmin();
-  const { data, error } = await db.from("transactions").select("direction, amount");
+  const { data, error } = await db
+    .from("transactions")
+    .select("direction, amount")
+    .eq("status", "actual");
   if (error) throw error;
 
   let totalIncome = 0;
@@ -34,30 +46,59 @@ export async function getCashPosition(): Promise<CashPosition> {
   return { totalIncome, totalExpense, netCash: totalIncome - totalExpense };
 }
 
+/**
+ * Projected (known but not yet paid/received) totals — mirrors the
+ * Actual / Projected / Total(A+P) split in the org's own internal ledger.
+ */
+export async function getProjectedTotals(netCash: number): Promise<ProjectedTotals> {
+  const db = supabaseAdmin();
+  const { data, error } = await db
+    .from("transactions")
+    .select("direction, amount")
+    .eq("status", "projected");
+  if (error) throw error;
+
+  let projectedIncome = 0;
+  let projectedExpense = 0;
+  for (const row of data ?? []) {
+    if (row.direction === "income") projectedIncome += Number(row.amount);
+    else projectedExpense += Number(row.amount);
+  }
+
+  const projectedNet = projectedIncome - projectedExpense;
+  return { projectedIncome, projectedExpense, projectedNet, projectedEndingBalance: netCash + projectedNet };
+}
+
 export async function getBudgetVsActual(): Promise<CategoryActual[]> {
   const db = supabaseAdmin();
   const [{ data: categories, error: catErr }, { data: transactions, error: txErr }] =
     await Promise.all([
       db.from("budget_categories").select("name, type, budget_target"),
-      db.from("transactions").select("category, direction, amount"),
+      db.from("transactions").select("category, direction, amount, status"),
     ]);
   if (catErr) throw catErr;
   if (txErr) throw txErr;
 
   const actualsByCategory = new Map<string, number>();
+  const projectedByCategory = new Map<string, number>();
   for (const tx of transactions ?? []) {
-    const key = tx.category;
-    actualsByCategory.set(key, (actualsByCategory.get(key) ?? 0) + Number(tx.amount));
+    const map = tx.status === "projected" ? projectedByCategory : actualsByCategory;
+    map.set(tx.category, (map.get(tx.category) ?? 0) + Number(tx.amount));
   }
 
   return (categories ?? []).map((c) => {
     const actual = actualsByCategory.get(c.name) ?? 0;
+    const projected = projectedByCategory.get(c.name) ?? 0;
+    const total = actual + projected;
+    const budgetTarget = Number(c.budget_target);
     return {
       category: c.name,
       type: c.type as "income" | "expense",
-      budgetTarget: Number(c.budget_target),
+      budgetTarget,
       actual,
-      variance: c.type === "income" ? actual - Number(c.budget_target) : Number(c.budget_target) - actual,
+      projected,
+      total,
+      variance: c.type === "income" ? total - budgetTarget : budgetTarget - total,
     };
   });
 }
@@ -70,7 +111,10 @@ export interface CategoryBreakdownRow {
 
 export async function getCategoryBreakdown(): Promise<CategoryBreakdownRow[]> {
   const db = supabaseAdmin();
-  const { data, error } = await db.from("transactions").select("category, direction, amount");
+  const { data, error } = await db
+    .from("transactions")
+    .select("category, direction, amount")
+    .eq("status", "actual");
   if (error) throw error;
 
   const totals = new Map<string, CategoryBreakdownRow>();

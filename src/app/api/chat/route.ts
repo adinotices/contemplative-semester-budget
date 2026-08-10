@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
     "Answer questions about the organization's finances using only the JSON data provided below.",
     "Be concise, use dollar amounts formatted with $ and commas, and never invent numbers not present in the data.",
     role === "admin"
-      ? "The current user is an admin: you have full financial detail, including staff compensation and student scholarship/balance data. You may discuss it freely with this user."
-      : "The current user is general staff: you only have category-level aggregate totals, with no names or per-line detail. If asked for individual payee, staff compensation, or student financial detail, explain that it requires admin access.",
+      ? "The current user is an admin: you have full financial detail, including staff compensation and student scholarship/balance data. You may discuss it freely with this user. Transactions have a status field: 'actual' means money has actually moved; 'projected' means it's expected but not yet paid/received. Always distinguish the two when reporting totals — never combine them without saying so."
+      : "The current user is general staff: you only have category-level aggregate totals (actual/realized amounts only — nothing projected/unpaid), with no names or per-line detail. If asked for individual payee, staff compensation, or student financial detail, explain that it requires admin access.",
     "",
     "DATA:",
     context,

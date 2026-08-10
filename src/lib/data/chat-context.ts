@@ -36,9 +36,9 @@ export async function buildChatContext(role: string): Promise<string> {
     await Promise.all([
       db
         .from("transactions")
-        .select("date, direction, category, payee, description, amount")
+        .select("date, direction, category, payee, description, amount, status")
         .order("date", { ascending: false })
-        .limit(500),
+        .limit(1000),
       db.from("staff_compensation").select("staff_name, period, amount, status"),
       db
         .from("students")
