@@ -7,8 +7,6 @@ const MAX_RECEIPT_BYTES = 10 * 1024 * 1024; // 10MB
 
 const fieldsSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
-  email: z.string().trim().email().optional().or(z.literal("")),
-  phone: z.string().trim().optional().or(z.literal("")),
   description: z.string().trim().min(1, "Description is required"),
   amount: z.coerce.number().positive("Amount must be greater than zero"),
 });
@@ -18,8 +16,6 @@ export async function POST(req: NextRequest) {
 
   const parsed = fieldsSchema.safeParse({
     name: form.get("name"),
-    email: form.get("email"),
-    phone: form.get("phone"),
     description: form.get("description"),
     amount: form.get("amount"),
   });
@@ -51,12 +47,10 @@ export async function POST(req: NextRequest) {
     receiptUrl = publicUrl.publicUrl;
   }
 
-  const { name, email, phone, description, amount } = parsed.data;
+  const { name, description, amount } = parsed.data;
 
   const { error: insertError } = await db.from("reimbursement_requests").insert({
     submitted_by_name: name,
-    submitted_by_email: email || null,
-    submitted_by_phone: phone || null,
     description,
     amount,
     receipt_url: receiptUrl,

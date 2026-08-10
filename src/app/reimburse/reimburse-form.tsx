@@ -49,8 +49,6 @@ export function ReimburseForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Field label="Your name" name="name" required />
-      <Field label="Email" name="email" type="email" />
-      <Field label="Phone" name="phone" type="tel" />
       <Field label="What was this for?" name="description" required textarea />
       <Field label="Amount (USD)" name="amount" type="number" step="0.01" min="0.01" required />
 

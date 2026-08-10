@@ -2,15 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { generateApprovalToken } from "@/lib/tokens";
 import { resend, EMAIL_FROM, APPROVER_EMAIL } from "@/lib/email/resend";
-import { weeklyDigestEmail } from "@/lib/email/templates";
+import { reimbursementBatchEmail, type BatchEmailItem } from "@/lib/email/templates";
+import { buildReceiptAttachments } from "@/lib/email/attachments";
 
 const TOKEN_TTL_DAYS = 7;
 
 /**
- * Triggered by Vercel Cron (see vercel.json). Finds pending reimbursement
- * requests, issues a fresh single-use signed approval link for each, and
- * emails the digest to the approver. See §6 of the architecture doc —
- * approval is link-based only, never email-reply parsing.
+ * Triggered by Vercel Cron (see vercel.json). Bundles every pending
+ * reimbursement into a single batch: one review email to the approver,
+ * grouped by submitter with receipts attached, one signed link that
+ * forwards the identical email to the accountant on approval. See §6 of
+ * the architecture doc — approval is link-based only, never email-reply
+ * parsing.
  */
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -25,7 +28,7 @@ export async function GET(req: NextRequest) {
   const db = supabaseAdmin();
   const { data: pending, error } = await db
     .from("reimbursement_requests")
-    .select("id, submitted_by_name, description, amount")
+    .select("id, submitted_by_name, description, amount, receipt_url")
     .eq("status", "pending")
     .order("created_at", { ascending: true });
 
@@ -38,38 +41,57 @@ export async function GET(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://budget.contemplativesemester.org";
+  const token = generateApprovalToken();
   const expiresAt = new Date(Date.now() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-  const items = [];
-  for (const request of pending) {
-    const token = generateApprovalToken();
-    const { error: tokenError } = await db.from("reimbursement_approvals").insert({
-      reimbursement_id: request.id,
-      approval_token: token,
-      token_expires_at: expiresAt,
-    });
-    if (tokenError) continue;
+  const { data: batch, error: batchError } = await db
+    .from("digest_batches")
+    .insert({ approval_token: token, token_expires_at: expiresAt })
+    .select("id")
+    .single();
 
-    items.push({
-      id: request.id,
-      submittedByName: request.submitted_by_name,
-      description: request.description,
-      amount: Number(request.amount),
-      approveUrl: `${appUrl}/approve/${token}`,
-    });
+  if (batchError || !batch) {
+    return NextResponse.json({ error: "Failed to create batch" }, { status: 500 });
   }
 
-  if (items.length === 0) {
-    return NextResponse.json({ ok: true, sent: false, reason: "Failed to create tokens" });
+  const batchItems = pending.map((request, index) => ({
+    batch_id: batch.id,
+    reimbursement_id: request.id,
+    sequence_number: index + 1,
+  }));
+
+  const { error: itemsError } = await db.from("digest_batch_items").insert(batchItems);
+  if (itemsError) {
+    return NextResponse.json({ error: "Failed to save batch items" }, { status: 500 });
   }
 
-  const { subject, html } = weeklyDigestEmail(items, appUrl);
+  const emailItems: BatchEmailItem[] = pending.map((request, index) => ({
+    sequenceLabel: `R${index + 1}`,
+    submitterName: request.submitted_by_name,
+    description: request.description,
+    amount: Number(request.amount),
+    hasReceipt: Boolean(request.receipt_url),
+  }));
+
+  const attachments = await buildReceiptAttachments(
+    pending.map((request, index) => ({
+      sequenceLabel: `R${index + 1}`,
+      receiptUrl: request.receipt_url,
+    })),
+  );
+
+  const { subject, html } = reimbursementBatchEmail({
+    items: emailItems,
+    approveUrl: `${appUrl}/approve/${token}`,
+  });
+
   await resend().emails.send({
     from: EMAIL_FROM,
     to: APPROVER_EMAIL,
     subject,
     html,
+    attachments,
   });
 
-  return NextResponse.json({ ok: true, sent: true, count: items.length });
+  return NextResponse.json({ ok: true, sent: true, count: pending.length });
 }
