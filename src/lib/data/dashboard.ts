@@ -1,16 +1,21 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 export interface CashPosition {
+  startingBalance: number;
   totalIncome: number;
   totalExpense: number;
-  netCash: number;
+  /** Starting balance + net actual activity — "Current Money in Bank" in the org's own ledger. */
+  currentMoneyInBank: number;
+  remainingBalanceTarget: number;
 }
 
 export interface ProjectedTotals {
   projectedIncome: number;
   projectedExpense: number;
   projectedNet: number;
+  /** Current Money in Bank + projected net — "Projected Remaining After All Obligations". */
   projectedEndingBalance: number;
+  varianceVsTarget: number;
 }
 
 export interface CategoryActual {
@@ -23,6 +28,17 @@ export interface CategoryActual {
   variance: number;
 }
 
+async function getOrgSetting(key: string): Promise<number> {
+  const db = supabaseAdmin();
+  const { data, error } = await db
+    .from("org_settings")
+    .select("value_numeric")
+    .eq("key", key)
+    .maybeSingle();
+  if (error) throw error;
+  return Number(data?.value_numeric ?? 0);
+}
+
 /**
  * Server-only dashboard queries. Callers must already be authorized
  * (enforced by middleware + the admin-only page wrapper); these queries
@@ -30,10 +46,11 @@ export interface CategoryActual {
  */
 export async function getCashPosition(): Promise<CashPosition> {
   const db = supabaseAdmin();
-  const { data, error } = await db
-    .from("transactions")
-    .select("direction, amount")
-    .eq("status", "actual");
+  const [{ data, error }, startingBalance, remainingBalanceTarget] = await Promise.all([
+    db.from("transactions").select("direction, amount").eq("status", "actual"),
+    getOrgSetting("starting_balance"),
+    getOrgSetting("remaining_balance_target"),
+  ]);
   if (error) throw error;
 
   let totalIncome = 0;
@@ -43,14 +60,20 @@ export async function getCashPosition(): Promise<CashPosition> {
     else totalExpense += Number(row.amount);
   }
 
-  return { totalIncome, totalExpense, netCash: totalIncome - totalExpense };
+  return {
+    startingBalance,
+    totalIncome,
+    totalExpense,
+    currentMoneyInBank: startingBalance + totalIncome - totalExpense,
+    remainingBalanceTarget,
+  };
 }
 
 /**
  * Projected (known but not yet paid/received) totals — mirrors the
  * Actual / Projected / Total(A+P) split in the org's own internal ledger.
  */
-export async function getProjectedTotals(netCash: number): Promise<ProjectedTotals> {
+export async function getProjectedTotals(cash: CashPosition): Promise<ProjectedTotals> {
   const db = supabaseAdmin();
   const { data, error } = await db
     .from("transactions")
@@ -66,7 +89,14 @@ export async function getProjectedTotals(netCash: number): Promise<ProjectedTota
   }
 
   const projectedNet = projectedIncome - projectedExpense;
-  return { projectedIncome, projectedExpense, projectedNet, projectedEndingBalance: netCash + projectedNet };
+  const projectedEndingBalance = cash.currentMoneyInBank + projectedNet;
+  return {
+    projectedIncome,
+    projectedExpense,
+    projectedNet,
+    projectedEndingBalance,
+    varianceVsTarget: projectedEndingBalance - cash.remainingBalanceTarget,
+  };
 }
 
 export async function getBudgetVsActual(): Promise<CategoryActual[]> {

@@ -15,7 +15,7 @@ export default async function DashboardPage() {
     getBudgetVsActual(),
     getCategoryBreakdown(),
   ]);
-  const projected = await getProjectedTotals(cash.netCash);
+  const projected = await getProjectedTotals(cash);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -23,17 +23,18 @@ export default async function DashboardPage() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
         <h1 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Budget Dashboard</h1>
 
-        <section className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatCard label="Total Income (actual)" value={formatCurrency(cash.totalIncome)} />
-          <StatCard label="Total Expense (actual)" value={formatCurrency(cash.totalExpense)} />
+        <section className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <StatCard label="Starting Balance (Jan 2025)" value={formatCurrency(cash.startingBalance)} small />
+          <StatCard label="Total Income (actual)" value={formatCurrency(cash.totalIncome)} small />
+          <StatCard label="Total Expense (actual)" value={formatCurrency(cash.totalExpense)} small />
           <StatCard
-            label="Net Cash Position"
-            value={formatCurrency(cash.netCash)}
-            highlight={cash.netCash >= 0 ? "positive" : "negative"}
+            label="Current Money in Bank (actuals only)"
+            value={formatCurrency(cash.currentMoneyInBank)}
+            highlight={cash.currentMoneyInBank >= 0 ? "positive" : "negative"}
           />
         </section>
 
-        <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard
             label="Projected Net (not yet paid/received)"
             value={formatCurrency(projected.projectedNet)}
@@ -41,9 +42,14 @@ export default async function DashboardPage() {
             small
           />
           <StatCard
-            label="Projected Ending Balance"
+            label="Projected Remaining After All Obligations"
             value={formatCurrency(projected.projectedEndingBalance)}
             highlight={projected.projectedEndingBalance >= 0 ? "positive" : "negative"}
+          />
+          <StatCard
+            label={`Variance vs ${formatCurrency(cash.remainingBalanceTarget)} Target`}
+            value={formatCurrency(projected.varianceVsTarget)}
+            highlight={projected.varianceVsTarget >= 0 ? "positive" : "negative"}
             small
           />
         </section>

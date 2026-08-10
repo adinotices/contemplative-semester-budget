@@ -25,18 +25,18 @@ export default async function CategoriesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-                <th className="py-2 font-medium">Name</th>
-                <th className="py-2 font-medium">Type</th>
-                <th className="py-2 text-right font-medium">Target</th>
+                <th className="py-2 pr-3 font-medium">Name</th>
+                <th className="py-2 pr-3 font-medium">Type</th>
+                <th className="py-2 pr-3 text-right font-medium">Target</th>
                 <th className="py-2 font-medium">Notes</th>
               </tr>
             </thead>
             <tbody>
               {(categories ?? []).map((c) => (
                 <tr key={c.id} className="border-b border-neutral-100 dark:border-neutral-800">
-                  <td className="py-2">{c.name}</td>
-                  <td className="py-2 capitalize text-neutral-500 dark:text-neutral-400">{c.type}</td>
-                  <td className="py-2 text-right">{formatCurrency(Number(c.budget_target))}</td>
+                  <td className="py-2 pr-3">{c.name}</td>
+                  <td className="py-2 pr-3 capitalize text-neutral-500 dark:text-neutral-400">{c.type}</td>
+                  <td className="py-2 pr-3 text-right">{formatCurrency(Number(c.budget_target))}</td>
                   <td className="py-2 text-neutral-500 dark:text-neutral-400">{c.notes}</td>
                 </tr>
               ))}
