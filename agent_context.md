@@ -4,7 +4,7 @@ Working notes on what's built, what's provisioned, and what's left. Read
 `docs/architecture.md` first for the full spec this was built from; this file
 tracks *implementation status* against that spec, not the spec itself.
 
-Last updated: 2026-08-10 (§2e: UI polish pass — see below).
+Last updated: 2026-08-10 (§2f: Tuition net-target fix — see below).
 
 ---
 
@@ -216,6 +216,45 @@ individual commits:
   "Projected Net" figure.
 - Sub-tab order is now: Overview, Categories, Projected, Staff
   Compensation, Reconciliation (`src/components/dashboard-tabs-client.tsx`).
+
+## 2f. Fixed Tuition showing "no target" (2026-08-10)
+
+User asked why Budget vs. Actual showed "no target" for Tuition, Tuition —
+Admin Fees, and Tuition — College Credit Fees. Root cause: Tuition's real
+budget goal in the source spreadsheet is a **netted** figure — "Tuition
+(net of Naropa fees & refunds)", $253,064 — computed as gross tuition
+(Tuition + Admin Fees + College Credit Fees) minus the current-cohort
+Naropa Pass-Through fee and student Refunds. The flat per-category
+`budget_categories` import had no way to express that netting, so all five
+underlying categories were left at `budget_target = 0`/no target.
+
+Fix (`src/lib/data/dashboard.ts`, `applyTuitionNetting()` inside
+`getBudgetVsActual()`): reproduces the spreadsheet's exact netting in code
+— sums actual/projected across the three gross tuition categories, sums
+actual/projected across Naropa Pass-Through (current cohort only — NOT
+"— Prior Cohort", which stays separate and does net against nothing) and
+Refund, subtracts, and emits one synthetic "Tuition (net)" income row with
+`budgetTarget = 253064`. The five raw component categories are excluded
+from the returned array (they no longer appear as their own Budget vs.
+Actual rows, matching the spreadsheet, though they're untouched everywhere
+else — Category Breakdown, `/admin/projected`, chat context — since those
+read `transactions` directly).
+
+Verified exactly against the spreadsheet's own Budget vs Actual tab: target
+$253,064, actual $270,340, projected -$14,200, total $256,140, variance
+$3,076.
+
+Also removed the `budgetTarget === 0 ? "no target" : ...` UI branch in
+`src/app/page.tsx` — after this fix, every standalone (non-grouped) row
+left in the table has a real target from the spreadsheet, including a
+genuine `$0` target for Naropa Pass-Through — Prior Cohort, which the old
+logic was mislabeling as "no target" rather than showing its real
+(unfavorable) variance.
+
+Numbers pulled fresh from the original upload
+(`/root/.claude/uploads/.../a4d35f6e-CS_Ledger__Updated_June72026.xlsx`,
+`Budget vs Actual` sheet) — that file is still present in this environment
+if similar spot-checks are needed again.
 
 ## 2. Infrastructure — provisioned so far
 
