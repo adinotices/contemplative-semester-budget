@@ -4,7 +4,7 @@ Working notes on what's built, what's provisioned, and what's left. Read
 `docs/architecture.md` first for the full spec this was built from; this file
 tracks *implementation status* against that spec, not the spec itself.
 
-Last updated: 2026-08-10.
+Last updated: 2026-08-10 (§2c: starting balance fix).
 
 ---
 
@@ -130,6 +130,34 @@ batched raw SQL — not through the app's own insert paths.
   vs. Actual table gained Projected and Total(A+P) columns, variance now
   computed against the total; two new stat cards (Projected Net, Projected
   Ending Balance). Category Breakdown stays actual-only by design.
+
+## 2c. Fixed missing starting balance in cash position (2026-08-10)
+
+User cross-checked the dashboard against the xlsx's own "BOTTOM LINE"
+summary section (Starting Balance $61,352, Current Money in Bank $200,828,
+Projected Remaining $118,176, Variance $33,176) and asked why the numbers
+didn't match. Root cause: the dashboard's "Net Cash Position" only summed
+`transactions` (actual income − actual expense = $139,475.42), silently
+excluding the org's Jan 2025 starting balance that predates the ledger.
+Verified fix: `$61,352.24 + ($615,113 − $475,637.58) = $200,827.66`, matching
+the xlsx exactly.
+
+- New `org_settings` key/value table (migration `0005_org_settings.sql`,
+  admin-only RLS) holding `starting_balance` ($61,352.24) and
+  `remaining_balance_target` ($85,000.00) — figures that aren't
+  transactions but feed into cash-position math.
+- `src/lib/data/dashboard.ts`: `getCashPosition()` now returns
+  `startingBalance` and `currentMoneyInBank` (= starting balance + actual
+  net); `getProjectedTotals()` takes the full `CashPosition` (not just a
+  number) and returns `varianceVsTarget`.
+- `src/app/page.tsx`: stat cards relabeled to match the xlsx's own
+  terminology exactly (Starting Balance, Current Money in Bank (actuals
+  only), Projected Remaining After All Obligations, Variance vs $85K
+  Target) so future cross-checks are unambiguous.
+- Also fixed missing `pr-3` column padding on the `/admin/categories` table
+  (Type/Target/Notes were rendering with no gap between them).
+- Verified: `npm run lint` and `npm run build` clean, deployed
+  (`dpl_FvzeEhvmRzKqPmboXpJm5sBMzrw5`, commit `686f292`), no runtime errors.
 
 ## 2. Infrastructure — provisioned so far
 
