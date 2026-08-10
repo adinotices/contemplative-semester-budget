@@ -90,23 +90,19 @@ Removed the dark-mode override (app is a fixed light theme by design) and
 added explicit `text-neutral-900` to headings that had been relying on
 inherited color.
 
-**Resend**: account created (`resend.com.user967@passmail.net`), full-access
-key obtained, `RESEND_API_KEY` / `APPROVER_EMAIL` / `ACCOUNTANT_EMAILS` set
-on Vercel. Domain `contemplativesemester.org` added via API
-(id `1936750a-4fea-4bcb-8e13-fa5880542163`) but **not yet verified** —
-status was `not_started` as of last check. DNS records needed (given to
-user, not yet confirmed added):
-```
-TXT  resend._domainkey  p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCxEv75XIT7goXpHfe9DMvy16/39IYGyUP0jbJ+Ji7OTjI8FWqenQoV6t6gHhV98hCIyPXqBSbfLXZiYhXsp18F1+TNigHLmzE3Id9wBSB/N5ClaQt8cBw91gZr3gdSfexiNTJW2DcuDYivVKlmjlNsWnF+D8R9ymrMFnxzLnWpTwIDAQAB
-MX   send               feedback-smtp.us-east-1.amazonses.com  (priority 10)
-TXT  send               v=spf1 include:amazonses.com ~all
-```
-Check status: `GET https://api.resend.com/domains/1936750a-4fea-4bcb-8e13-fa5880542163`
-with the full-access key. Until `status` flips to `verified`, sends from
-`budget@contemplativesemester.org` will fail even though the API key and
-app code are otherwise ready. Note: there's also an unrelated Resend
-account/domain (`samvara.app`, different project) that came up during
-setup — don't touch it.
+**Resend**: fully wired up and verified. Account created
+(`resend.com.user967@passmail.net`), full-access key obtained,
+`RESEND_API_KEY` / `APPROVER_EMAIL` / `ACCOUNTANT_EMAILS` / `EMAIL_FROM`
+(`budget@contemplativesemester.org`) all set on Vercel. Domain
+`contemplativesemester.org` (id `1936750a-4fea-4bcb-8e13-fa5880542163`,
+DNS on Squarespace) — DKIM, SPF, and MX (`send` subdomain) records all
+`verified` as of last check via `POST .../verify` + `GET` on the domain.
+Email sending should work end-to-end now; hasn't been tested with a real
+send yet (deliberately avoided firing a real email at Jaycel/Maya just to
+test — worth a real `/reimburse` → digest → approve smoke test when
+convenient). Note: there's also an unrelated Resend account/domain
+(`samvara.app`, different project) that came up during setup — don't
+touch it.
 
 **Real people, for context**:
 - `Jaycel.Arcedera@npcm.com` — accountant who processes reimbursements/invoices; `ACCOUNTANT_EMAILS` recipient
@@ -120,8 +116,8 @@ setup — don't touch it.
 
 **Still not provisioned**: no Twilio account (the in-session Twilio MCP
 connector is docs-only, not tied to a real account). Until that's set, the
-WhatsApp bot won't function. The weekly digest/accountant email pipeline is
-fully wired now — just waiting on Resend domain DNS verification.
+WhatsApp bot won't function. Everything else — dashboard, chat, sign-in,
+reimbursement/approval/digest emails — is now fully live.
 
 ### Known env values (safe to reuse)
 ```
@@ -137,35 +133,29 @@ Supabase dashboard (Project Settings → API) when setting it on Vercel.
 
 ## 3. No current blocker
 
-Sign-in, dashboard, and chat are all confirmed working in production as of
-this writing. Nothing is blocking further progress — remaining work is
-purely provisioning two more services.
+Sign-in, dashboard, chat, and now email (Resend, verified domain) are all
+confirmed working in production. Only Twilio/WhatsApp remains.
 
 ## 4. Next steps, roughly in order
 
-1. **Resend domain verification**: confirm the DNS records above got added,
-   then poll `GET /domains/1936750a-4fea-4bcb-8e13-fa5880542163` until
-   `status: "verified"`. `EMAIL_FROM` isn't set on Vercel yet either —
-   default is `budget@contemplativesemester.org` per `lib/email/resend.ts`,
-   set it explicitly once the domain verifies, then redeploy.
-2. **Twilio WhatsApp**: provision a WhatsApp Business API number (the Twilio
+1. **Twilio WhatsApp**: provision a WhatsApp Business API number (the Twilio
    MCP connector in-session is authless/docs-only — it can look up API
    references but can't provision anything; you need real Account SID/Auth
    Token), point its webhook at
    `https://contemplative-semester-budget.vercel.app/api/whatsapp/webhook`,
    set `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_NUMBER`
    on Vercel, redeploy.
-3. **DNS**: `budget.contemplativesemester.org` → CNAME → Vercel, then update
+2. **DNS**: `budget.contemplativesemester.org` → CNAME → Vercel, then update
    `NEXT_PUBLIC_APP_URL` and the Google OAuth redirect URI (in Google Cloud
    Console) to match.
-4. **Data migration**: one-time manual import of the existing spreadsheet
+3. **Data migration**: one-time manual import of the existing spreadsheet
    ledger into `transactions`, `students`, `staff_compensation` — no
    existing export format to script against yet, so this is data entry, not
    an engineering task.
-5. **End-to-end smoke test** once Resend/Twilio are live: submit a
-   `/reimburse` request → weekly digest email → approve via signed link →
-   accountant email fires → WhatsApp bot round-trip → `/chat` respects role
-   scoping for an admin vs. non-admin account.
+4. **End-to-end smoke test**: submit a real `/reimburse` request → weekly
+   digest email → approve via signed link → accountant email fires →
+   `/chat` respects role scoping for an admin vs. non-admin account. Add
+   the WhatsApp bot round-trip once Twilio is live.
 
 Phase 5 (reconciliation bulk import) stays blocked on Meredith providing
 BCBS exports on a standing cadence — not a technical blocker, per the
