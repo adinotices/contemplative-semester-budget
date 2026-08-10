@@ -126,9 +126,7 @@ export default async function DashboardPage() {
                         >
                           <td className="py-2 pr-3">{row.category}</td>
                           <td className="py-2 pr-3 capitalize text-neutral-500 dark:text-neutral-400">{row.type}</td>
-                          <td className="py-2 pr-3 text-right">
-                            {row.budgetTarget > 0 ? formatCurrency(row.budgetTarget) : "—"}
-                          </td>
+                          <td className="py-2 pr-3 text-right">{formatCurrency(row.budgetTarget)}</td>
                           <td className="py-2 pr-3 text-right">{formatCurrency(row.actual)}</td>
                           <td className="py-2 pr-3 text-right text-neutral-500 dark:text-neutral-400">
                             {row.projected !== 0 ? formatCurrency(row.projected) : "—"}
@@ -136,14 +134,12 @@ export default async function DashboardPage() {
                           <td className="py-2 pr-3 text-right font-medium">{formatCurrency(row.total)}</td>
                           <td
                             className={`py-2 text-right ${
-                              row.budgetTarget === 0
-                                ? "text-neutral-400 dark:text-neutral-500"
-                                : row.variance < 0
-                                  ? "text-red-600 dark:text-red-400"
-                                  : "text-emerald-600 dark:text-emerald-400"
+                              row.variance < 0
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-emerald-600 dark:text-emerald-400"
                             }`}
                           >
-                            {row.budgetTarget > 0 ? formatCurrency(row.variance) : "no target"}
+                            {formatCurrency(row.variance)}
                           </td>
                         </tr>
                       );

@@ -117,7 +117,7 @@ export async function getBudgetVsActual(): Promise<CategoryActual[]> {
     map.set(tx.category, (map.get(tx.category) ?? 0) + Number(tx.amount));
   }
 
-  return (categories ?? []).map((c) => {
+  const rows = (categories ?? []).map((c) => {
     const actual = actualsByCategory.get(c.name) ?? 0;
     const projected = projectedByCategory.get(c.name) ?? 0;
     const total = actual + projected;
@@ -133,6 +133,47 @@ export async function getBudgetVsActual(): Promise<CategoryActual[]> {
       notes: c.notes,
     };
   });
+
+  return applyTuitionNetting(rows);
+}
+
+/**
+ * The source spreadsheet's Budget vs Actual tab shows one "Tuition (net)"
+ * income line rather than five separate ones — gross tuition (Tuition +
+ * Admin Fees + College Credit Fees) minus the current-cohort Naropa
+ * Pass-Through fee and student Refunds, against a $253,064 target. Those
+ * five raw categories were imported as their own budget_categories rows
+ * with no target (the netting can't be expressed as a flat per-category
+ * number), which made Tuition look like it had no goal at all. Reproduce
+ * the spreadsheet's own netting here instead.
+ */
+const TUITION_GROSS_CATEGORIES = ["Tuition", "Tuition — Admin Fees", "Tuition — College Credit Fees"];
+const TUITION_NET_DEDUCTIONS = ["Naropa Pass-Through", "Refund"];
+const TUITION_NET_TARGET = 253064;
+
+function applyTuitionNetting(rows: CategoryActual[]): CategoryActual[] {
+  const gross = rows.filter((r) => TUITION_GROSS_CATEGORIES.includes(r.category));
+  if (gross.length === 0) return rows;
+  const deductions = rows.filter((r) => TUITION_NET_DEDUCTIONS.includes(r.category));
+
+  const sum = (list: CategoryActual[], key: "actual" | "projected") => list.reduce((s, r) => s + r[key], 0);
+  const actual = sum(gross, "actual") - sum(deductions, "actual");
+  const projected = sum(gross, "projected") - sum(deductions, "projected");
+  const total = actual + projected;
+
+  const netRow: CategoryActual = {
+    category: "Tuition (net)",
+    type: "income",
+    budgetTarget: TUITION_NET_TARGET,
+    actual,
+    projected,
+    total,
+    variance: total - TUITION_NET_TARGET,
+    notes: "Net of current-cohort Naropa Pass-Through fees and student Refunds, per the source spreadsheet's Budget vs Actual tab.",
+  };
+
+  const excluded = new Set([...TUITION_GROSS_CATEGORIES, ...TUITION_NET_DEDUCTIONS]);
+  return [netRow, ...rows.filter((r) => !excluded.has(r.category))];
 }
 
 export interface CategoryBreakdownRow {
