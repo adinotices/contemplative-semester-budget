@@ -19,7 +19,7 @@ the last commit.
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Schema + `/` dashboard (read-only) | Built |
+| 1 | Schema + `/` dashboard (read-only) | Built — populated with real data, see §2b |
 | 2 | `/reimburse` form + weekly digest cron + `/approve/[token]` + accountant email | Built — redesigned as one batch email, see §2a |
 | 3 | `/chat`, role-scoped per §7 | Built |
 | 4 | WhatsApp bot (§8), same `reimbursement_requests` table | Built |
@@ -79,6 +79,57 @@ design:
   header), confirm the review email arrives with the grouped table +
   attachment, click through and approve, confirm Jaycel/Aditya/Maya all
   receive the final email.
+
+## 2b. Real ledger data imported (2026-08-10)
+
+User provided `CS_Ledger__Updated_June72026.xlsx` (org's own internal
+tracking spreadsheet, explicitly *not* a BCBS export) and asked to fill the
+DB from it. Imported via the Supabase Management API (`sbp_...` token),
+batched raw SQL — not through the app's own insert paths.
+
+- **674 actual + 37 projected transactions** from the "Reclassified Ledger"
+  and "Projected Transactions" sheets. Every actual-side category total and
+  transaction count was verified to reconcile *exactly* against the
+  spreadsheet's own "Summary by Category" tab before treating the import as
+  done (e.g. Compensation $224,319.52/124 txns, Total Income $615,113,
+  Total Actual Expenses $475,637.58, Projected Net -$82,651.96 — all exact
+  matches).
+- **18 `budget_categories`** (5 income + 13 expense) from "Category
+  Reference". `budget_target` is only populated for the 7 categories that
+  map 1:1 onto a single line in the spreadsheet's "Budget vs Actual" tab
+  (Compensation $293,316, Facilities $114,100, Food $53,000, Professional
+  Services $34,500, Technology $2,500, Travel $10,000, Naropa Pass-Through
+  — Prior Cohort $0). The rest (Tuition family, Individual Donations +
+  Grants, Supplies + Marketing, Staff Development + Other Expense) share a
+  combined or netted budget line in the source spreadsheet that the app's
+  flat per-category schema can't represent — left at `budget_target = 0`
+  with an explanatory `notes` value rather than fabricating a split. If
+  more precision is wanted here, it needs either a product decision on how
+  to model combined budget lines, or manual entry via Admin → Categories.
+- **36 `staff_compensation` rows** from the "Staff Compensation Tracker"
+  summary section only (one row per person per Actual-paid/Projected-
+  remaining, skipping zero values) — its "TRANSACTION DETAIL" section was
+  *not* imported since it's the same underlying payments already captured
+  as `Compensation`-category rows in `transactions` (importing both would
+  double-count).
+- **`students` table intentionally left empty** — no structured per-student
+  roster exists in this file; tuition/scholarship figures only appear as
+  free text inside Tuition-category transaction descriptions (e.g. "Rob
+  Kellet - Deposit"). Would need a separate roster source to populate.
+- **Schema change**: `transactions` gained a `status` column
+  (`'actual' | 'projected'`, default `'actual'`, migration
+  `0003_transaction_status.sql`) specifically to hold the projected data
+  without corrupting real cash-position totals — this concept didn't exist
+  before this import; added at the user's explicit request ("create a new
+  projected concept, recreate the schema if you need to").
+- **`category_summary` view** (migration `0004_...`) was restricted to
+  `status = 'actual'` — it previously summed everything unfiltered, which
+  would have silently blended projected amounts into what general-staff
+  `/chat` shows as real totals.
+- **Dashboard** (`src/app/page.tsx`, `src/lib/data/dashboard.ts`): Budget
+  vs. Actual table gained Projected and Total(A+P) columns, variance now
+  computed against the total; two new stat cards (Projected Net, Projected
+  Ending Balance). Category Breakdown stays actual-only by design.
 
 ## 2. Infrastructure — provisioned so far
 
