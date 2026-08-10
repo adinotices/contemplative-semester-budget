@@ -4,7 +4,7 @@ Working notes on what's built, what's provisioned, and what's left. Read
 `docs/architecture.md` first for the full spec this was built from; this file
 tracks *implementation status* against that spec, not the spec itself.
 
-Last updated: 2026-08-09.
+Last updated: 2026-08-10.
 
 ---
 
@@ -67,16 +67,33 @@ Key files if you need to pick up implementation work:
 
 **Env vars set on Vercel** (production/preview/development):
 `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
-`AUTH_SECRET` (generated), `CRON_SECRET` (generated), `NEXT_PUBLIC_APP_URL`
-(`https://contemplative-semester-budget.vercel.app` — update once the real
-`budget.contemplativesemester.org` domain is attached).
+`SUPABASE_SERVICE_ROLE_KEY`, `AUTH_SECRET` (generated), `AUTH_GOOGLE_ID`,
+`AUTH_GOOGLE_SECRET`, `ANTHROPIC_API_KEY`, `CRON_SECRET` (generated),
+`NEXT_PUBLIC_APP_URL` (`https://contemplative-semester-budget.vercel.app` —
+update once the real `budget.contemplativesemester.org` domain is attached).
+Each of these was set via a short-lived user-supplied API token (Vercel
+`vcp_...` and Supabase `sbp_...` tokens, each valid ~1hr–1day, provided
+fresh each time) followed by a manual redeploy — env var changes don't
+retroactively apply to an already-built deployment, so every new var
+required triggering a fresh production deployment via the `/v13/deployments`
+API with the current `main` SHA. See §4 for the pattern if more are needed.
 
-**Still not provisioned**: no Google OAuth client, no Twilio WhatsApp number,
-no Resend account/domain, no Anthropic API key, no `SUPABASE_SERVICE_ROLE_KEY`
-on Vercel yet (intentionally not exposed via the Supabase MCP connector —
-pull it from the Supabase dashboard, Project Settings → API). Until these are
-set, `/`, `/admin/*`, `/chat`, sign-in, and the WhatsApp webhook will error at
-runtime even though they build fine.
+**`team_members` seeded**: `aditya@contemplativesemester.org` is `admin`
+and can sign in successfully (verified in production).
+
+**Fixed a contrast bug** (commit `5c56563`): leftover create-next-app
+`prefers-color-scheme: dark` CSS in `globals.css` had an unlayered
+`body { color }` rule that beat the Tailwind `text-neutral-900` utility on
+`<body>` per CSS cascade-layer rules, making body text near-white (and
+therefore invisible on white cards) for anyone on a dark-mode OS/browser.
+Removed the dark-mode override (app is a fixed light theme by design) and
+added explicit `text-neutral-900` to headings that had been relying on
+inherited color.
+
+**Still not provisioned**: no Resend account/domain, no Twilio account
+(the in-session Twilio MCP connector is docs-only, not tied to a real
+account). Until these are set, the weekly digest/accountant emails and the
+WhatsApp bot won't function, though everything else now works end-to-end.
 
 ### Known env values (safe to reuse)
 ```
@@ -90,56 +107,56 @@ Vercel if they ever need to change. `SUPABASE_SERVICE_ROLE_KEY` is
 intentionally not exposed via the Supabase MCP connector — pull it from the
 Supabase dashboard (Project Settings → API) when setting it on Vercel.
 
-## 3. Current blocker
+## 3. No current blocker
 
-**`team_members` is empty.** The Google OAuth `signIn` callback
-(`src/auth.ts`) rejects any email not present in that table, so *no one can
-sign in yet*, even once Vercel/Google OAuth are configured. This was asked
-of the user (Aditya) and is still unanswered as of this writing: which
-email(s) should be seeded as the first admin? Once known:
-```sql
-insert into team_members (name, email, role)
-values ('Aditya', '<email>', 'admin');
-```
-Run via the Supabase MCP `execute_sql` tool or the dashboard SQL editor.
+Sign-in, dashboard, and chat are all confirmed working in production as of
+this writing. Nothing is blocking further progress — remaining work is
+purely provisioning two more services.
 
 ## 4. Next steps, roughly in order
 
-1. **Resolve the blocker above** — get the admin email(s), seed
-   `team_members`.
-2. **`SUPABASE_SERVICE_ROLE_KEY`**: pull from Supabase dashboard, set on
-   Vercel (needs a fresh API token or the dashboard — see §2 note above on
-   the Vercel MCP connector's gap).
-3. **Google OAuth**: create an OAuth client in Google Cloud Console,
-   redirect URI `https://contemplative-semester-budget.vercel.app/api/auth/callback/google`
-   (update once the real domain is attached), set `AUTH_GOOGLE_ID` /
-   `AUTH_GOOGLE_SECRET` on Vercel (`AUTH_SECRET` already set).
-4. **Resend**: create account, verify a sending domain, get `RESEND_API_KEY`,
+1. **Resend**: create account, verify a sending domain, get `RESEND_API_KEY`,
    set `EMAIL_FROM`, `APPROVER_EMAIL` (Aditya), `ACCOUNTANT_EMAILS`
-   (Jaycel/Melissa).
-5. **Twilio WhatsApp**: provision a WhatsApp Business API number (the Twilio
+   (Jaycel/Melissa) on Vercel, then redeploy (see the pattern note in §2 —
+   env var changes need a fresh deployment to take effect).
+2. **Twilio WhatsApp**: provision a WhatsApp Business API number (the Twilio
    MCP connector in-session is authless/docs-only — it can look up API
    references but can't provision anything; you need real Account SID/Auth
    Token), point its webhook at
    `https://contemplative-semester-budget.vercel.app/api/whatsapp/webhook`,
-   set `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_NUMBER`.
-6. **Anthropic**: set `ANTHROPIC_API_KEY` for `/chat` and the WhatsApp bot's
-   Claude-driven conversation + receipt OCR.
-7. **DNS**: `budget.contemplativesemester.org` → CNAME → Vercel, then update
-   `NEXT_PUBLIC_APP_URL` and the Google OAuth redirect URI to match.
-8. **Cron**: `CRON_SECRET` is already set; confirm `vercel.json`'s
-   weekly-digest schedule (currently Monday 13:00 UTC) matches the actual
-   review cadence.
-9. **Data migration**: one-time manual import of the existing spreadsheet
+   set `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_NUMBER`
+   on Vercel, redeploy.
+3. **DNS**: `budget.contemplativesemester.org` → CNAME → Vercel, then update
+   `NEXT_PUBLIC_APP_URL` and the Google OAuth redirect URI (in Google Cloud
+   Console) to match.
+4. **Data migration**: one-time manual import of the existing spreadsheet
    ledger into `transactions`, `students`, `staff_compensation` — no
    existing export format to script against yet, so this is data entry, not
    an engineering task.
-10. **End-to-end smoke test** once the above is live: sign in → dashboard
-    loads real numbers → submit a `/reimburse` request → weekly digest email
-    → approve via signed link → accountant email fires → WhatsApp bot
-    round-trip → `/chat` respects role scoping for an admin vs. non-admin
-    account.
+5. **End-to-end smoke test** once Resend/Twilio are live: submit a
+   `/reimburse` request → weekly digest email → approve via signed link →
+   accountant email fires → WhatsApp bot round-trip → `/chat` respects role
+   scoping for an admin vs. non-admin account.
 
 Phase 5 (reconciliation bulk import) stays blocked on Meredith providing
 BCBS exports on a standing cadence — not a technical blocker, per the
 architecture doc.
+
+### Pattern for setting more env vars on Vercel
+
+No standing API access — get a fresh short-lived Vercel token
+(dashboard → Settings → Tokens) each time, then:
+```bash
+curl -X POST "https://api.vercel.com/v10/projects/prj_RRWY10QprIhaub7WzLmvGGIXFiYU/env?teamId=team_KpKoA8AVXDl0z7CXKeMGpza1" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '[{"key":"...","value":"...","type":"encrypted","target":["production","preview","development"]}]'
+```
+Then trigger a redeploy (env vars don't apply retroactively):
+```bash
+SHA=$(git rev-parse main)
+curl -X POST "https://api.vercel.com/v13/deployments?teamId=team_KpKoA8AVXDl0z7CXKeMGpza1" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"name\":\"contemplative-semester-budget\",\"project\":\"prj_RRWY10QprIhaub7WzLmvGGIXFiYU\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"repoId\":1323626024,\"ref\":\"main\",\"sha\":\"$SHA\"}}"
+```
+Both `curl` calls need `--cacert /root/.ccr/ca-bundle.crt` if run through
+the same proxied sandbox this was built in.
