@@ -6,6 +6,7 @@ import {
   getCashPosition,
   getCategoryBreakdown,
   getProjectedTotals,
+  type CategoryBreakdownRow,
 } from "@/lib/data/dashboard";
 
 export const dynamic = "force-dynamic";
@@ -106,30 +107,20 @@ export default async function DashboardPage() {
           )}
         </section>
 
+        <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+          <h2 className="mb-4 text-lg font-medium text-neutral-900 dark:text-neutral-50">Category Breakdown — Income (actual)</h2>
+          <CategoryBreakdownTable
+            rows={breakdown.filter((row) => row.direction === "income")}
+            emptyMessage="No income transactions recorded yet."
+          />
+        </section>
+
         <section className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
-          <h2 className="mb-4 text-lg font-medium text-neutral-900 dark:text-neutral-50">Category Breakdown (actual)</h2>
-          {breakdown.length === 0 ? (
-            <EmptyState message="No transactions recorded yet." />
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-                  <th className="py-2 pr-3 font-medium">Category</th>
-                  <th className="py-2 pr-3 font-medium">Direction</th>
-                  <th className="py-2 text-right font-medium">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {breakdown.map((row) => (
-                  <tr key={`${row.category}-${row.direction}`} className="border-b border-neutral-100 dark:border-neutral-800">
-                    <td className="py-2 pr-3">{row.category}</td>
-                    <td className="py-2 pr-3 capitalize text-neutral-500 dark:text-neutral-400">{row.direction}</td>
-                    <td className="py-2 text-right">{formatCurrency(row.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <h2 className="mb-4 text-lg font-medium text-neutral-900 dark:text-neutral-50">Category Breakdown — Expense (actual)</h2>
+          <CategoryBreakdownTable
+            rows={breakdown.filter((row) => row.direction === "expense")}
+            emptyMessage="No expense transactions recorded yet."
+          />
         </section>
       </main>
     </div>
@@ -163,4 +154,26 @@ function StatCard({
 
 function EmptyState({ message }: { message: string }) {
   return <p className="text-sm text-neutral-500 dark:text-neutral-400">{message}</p>;
+}
+
+function CategoryBreakdownTable({ rows, emptyMessage }: { rows: CategoryBreakdownRow[]; emptyMessage: string }) {
+  if (rows.length === 0) return <EmptyState message={emptyMessage} />;
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+          <th className="py-2 pr-3 font-medium">Category</th>
+          <th className="py-2 text-right font-medium">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.category} className="border-b border-neutral-100 dark:border-neutral-800">
+            <td className="py-2 pr-3">{row.category}</td>
+            <td className="py-2 text-right">{formatCurrency(row.total)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
