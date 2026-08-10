@@ -25,6 +25,21 @@ function emptyState(): BotState {
   return { messages: [], collected: {} };
 }
 
+/**
+ * Keeps the rolling history inside MAX_HISTORY without ever handing the API
+ * a transcript that opens on an assistant turn — the Anthropic API requires
+ * the first message to be `user` and 400s otherwise. A plain
+ * `slice(-MAX_HISTORY)` on this alternating transcript drops the leading
+ * user turn once the conversation passes MAX_HISTORY messages, which broke
+ * every session that ran longer than ~10 exchanges.
+ */
+function trimHistory(messages: BotMessage[]): BotMessage[] {
+  const trimmed = messages.slice(-MAX_HISTORY);
+  const firstUser = trimmed.findIndex((m) => m.role === "user");
+  if (firstUser === -1) return []; // nothing usable survived the window
+  return firstUser === 0 ? trimmed : trimmed.slice(firstUser);
+}
+
 const SUBMIT_TOOL = {
   name: "submit_reimbursement",
   description:
@@ -85,8 +100,8 @@ export async function handleIncomingMessage(params: {
     }
   }
 
-  state.messages.push({ role: "user", content: userTurnText });
-  state.messages = state.messages.slice(-MAX_HISTORY);
+  state.messages.push({ role: "user", content: userTurnText || "[empty message]" });
+  state.messages = trimHistory(state.messages);
 
   const contextNote = `Known so far: ${JSON.stringify(state.collected)}`;
 
@@ -131,6 +146,11 @@ export async function handleIncomingMessage(params: {
       { onConflict: "phone_number" },
     );
   } else {
+    // Resolve the fallback BEFORE persisting: an empty assistant turn
+    // written into state_json is replayed on the next message, and the API
+    // rejects empty content blocks — so one blank reply would wedge the
+    // conversation permanently.
+    reply = reply || "Sorry, could you say that again?";
     state.messages.push({ role: "assistant", content: reply });
     await db.from("bot_sessions").upsert(
       {
@@ -142,7 +162,7 @@ export async function handleIncomingMessage(params: {
     );
   }
 
-  return { reply: reply || "Sorry, could you say that again?", submitted };
+  return { reply, submitted };
 }
 
 async function extractReceiptAmount(buffer: Buffer, contentType: string): Promise<number | null> {

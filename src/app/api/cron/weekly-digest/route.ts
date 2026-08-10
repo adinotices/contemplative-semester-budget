@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { generateApprovalToken } from "@/lib/tokens";
 import { resend, EMAIL_FROM, APPROVER_EMAIL } from "@/lib/email/resend";
 import { reimbursementBatchEmail, type BatchEmailItem } from "@/lib/email/templates";
-import { buildReceiptAttachments } from "@/lib/email/attachments";
+import { buildReceiptAttachments, toResendAttachments } from "@/lib/email/attachments";
 
 const TOKEN_TTL_DAYS = 7;
 
@@ -65,14 +65,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Failed to save batch items" }, { status: 500 });
   }
 
-  const emailItems: BatchEmailItem[] = pending.map((request, index) => ({
-    sequenceLabel: `R${index + 1}`,
-    submitterName: request.submitted_by_name,
-    description: request.description,
-    amount: Number(request.amount),
-    hasReceipt: Boolean(request.receipt_url),
-  }));
-
   const attachments = await buildReceiptAttachments(
     pending.map((request, index) => ({
       sequenceLabel: `R${index + 1}`,
@@ -80,18 +72,40 @@ export async function GET(req: NextRequest) {
     })),
   );
 
+  // Derive "has receipt" from what actually downloaded, not from
+  // receipt_url — see buildReceiptAttachments.
+  const attachedLabels = new Set(attachments.map((a) => a.sequenceLabel));
+  const emailItems: BatchEmailItem[] = pending.map((request, index) => ({
+    sequenceLabel: `R${index + 1}`,
+    submitterName: request.submitted_by_name,
+    description: request.description,
+    amount: Number(request.amount),
+    hasReceipt: attachedLabels.has(`R${index + 1}`),
+  }));
+
   const { subject, html } = reimbursementBatchEmail({
     items: emailItems,
     approveUrl: `${appUrl}/approve/${token}`,
   });
 
-  await resend().emails.send({
+  // Resend returns { data, error } rather than throwing, so an unchecked
+  // send would report ok:true for an email that never left. Delete the
+  // batch we just created on failure — otherwise its approval token is
+  // live but nobody was ever sent the link, and the next cron run creates
+  // a second batch covering the same requests.
+  const { error: sendError } = await resend().emails.send({
     from: EMAIL_FROM,
     to: APPROVER_EMAIL,
     subject,
     html,
-    attachments,
+    attachments: toResendAttachments(attachments),
   });
+
+  if (sendError) {
+    console.error("Failed to send weekly digest email", sendError);
+    await db.from("digest_batches").delete().eq("id", batch.id);
+    return NextResponse.json({ error: "Failed to send digest email" }, { status: 502 });
+  }
 
   return NextResponse.json({ ok: true, sent: true, count: pending.length });
 }

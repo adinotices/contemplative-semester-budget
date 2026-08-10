@@ -1,5 +1,22 @@
 import { formatCurrency } from "@/lib/format";
 
+/**
+ * Submitter names and descriptions come from the public, unauthenticated
+ * /reimburse form and the WhatsApp bot, and land in an email read by the
+ * approver — who is looking at an "Approve & send to accountant" button.
+ * Unescaped, anyone on the internet could inject markup into that email,
+ * including a second button pointing somewhere else. Escape every
+ * caller-supplied value interpolated into the HTML below.
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export interface BatchEmailItem {
   sequenceLabel: string;
   submitterName: string;
@@ -39,15 +56,15 @@ export function reimbursementBatchEmail(opts: BatchEmailOptions) {
         .map(
           (item) => `
             <tr>
-              <td style="padding:6px 12px;border-bottom:1px solid #e5e5e5;font-family:monospace;color:#666;">${item.sequenceLabel}</td>
-              <td style="padding:6px 12px;border-bottom:1px solid #e5e5e5;">${item.description}${item.hasReceipt ? "" : ' <span style="color:#b45309;">(no receipt)</span>'}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #e5e5e5;font-family:monospace;color:#666;">${escapeHtml(item.sequenceLabel)}</td>
+              <td style="padding:6px 12px;border-bottom:1px solid #e5e5e5;">${escapeHtml(item.description)}${item.hasReceipt ? "" : ' <span style="color:#b45309;">(no receipt)</span>'}</td>
               <td style="padding:6px 12px;border-bottom:1px solid #e5e5e5;text-align:right;">${formatCurrency(item.amount)}</td>
             </tr>`,
         )
         .join("");
 
       return `
-        <h3 style="margin:20px 0 8px;">${submitterName}</h3>
+        <h3 style="margin:20px 0 8px;">${escapeHtml(submitterName)}</h3>
         <table style="width:100%;border-collapse:collapse;">
           <thead>
             <tr style="text-align:left;color:#666;font-size:12px;">
@@ -59,7 +76,7 @@ export function reimbursementBatchEmail(opts: BatchEmailOptions) {
           <tbody>
             ${rows}
             <tr style="font-weight:600;">
-              <td style="padding:6px 12px;" colspan="2">Total — ${submitterName}</td>
+              <td style="padding:6px 12px;" colspan="2">Total — ${escapeHtml(submitterName)}</td>
               <td style="padding:6px 12px;text-align:right;">${formatCurrency(subtotal)}</td>
             </tr>
           </tbody>
@@ -80,7 +97,7 @@ export function reimbursementBatchEmail(opts: BatchEmailOptions) {
         ${
           approveUrl
             ? `<p style="margin-top:24px;">
-                <a href="${approveUrl}" style="display:inline-block;background:#111;color:#fff;font-weight:600;padding:10px 20px;border-radius:8px;text-decoration:none;">Approve &amp; send to accountant</a>
+                <a href="${escapeHtml(approveUrl)}" style="display:inline-block;background:#111;color:#fff;font-weight:600;padding:10px 20px;border-radius:8px;text-decoration:none;">Approve &amp; send to accountant</a>
               </p>
               <p style="margin-top:8px;color:#999;font-size:12px;">This link is single-use and expires in 7 days.</p>`
             : ""

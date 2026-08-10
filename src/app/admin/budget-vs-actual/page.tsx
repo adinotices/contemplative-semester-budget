@@ -56,7 +56,7 @@ export default async function BudgetVsActualPage() {
 
         <section className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
           {budgetVsActual.length === 0 ? (
-            <EmptyState message="No budget categories configured yet. Add them under Admin → Categories." />
+            <EmptyState message="No budget categories found. They come from the ledger import — see the Categories tab for what each one means." />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

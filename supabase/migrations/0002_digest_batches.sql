@@ -4,6 +4,9 @@
 -- that forwards the same email to the accountant. reimbursement_approvals
 -- was never used in production (confirmed empty) — safe to drop.
 
+-- Dropping the table also drops its index and RLS policy, so the
+-- reimbursement_approvals lines still present in 0001 leave nothing behind
+-- after this migration runs.
 drop table if exists reimbursement_approvals;
 
 create table digest_batches (

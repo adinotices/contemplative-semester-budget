@@ -192,12 +192,6 @@ export interface ReconciliationSummary {
     earliestDate: string | null;
     latestDate: string | null;
   };
-  /** BCBS cash-account totals restricted to the internal ledger's own date range, for an apples-to-apples comparison. */
-  bcbsInRange: {
-    totalIncome: number;
-    totalExpense: number;
-    net: number;
-  };
   /**
    * BCBS's full accrual-basis P&L for Contemplative Semester (not just the 2
    * cash accounts) vs. the internal cash-basis ledger, over the window where
@@ -299,18 +293,11 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
 
   let bcbsIncome = 0;
   let bcbsExpense = 0;
-  let bcbsIncomeInRange = 0;
-  let bcbsExpenseInRange = 0;
   const bcbsDates = bcbsRows.map((b) => b.date).sort();
   for (const b of bcbsRows) {
     const amt = Number(b.amount);
-    const income = isBcbsIncome(b.description ?? "");
-    if (income) bcbsIncome += amt;
+    if (isBcbsIncome(b.description ?? "")) bcbsIncome += amt;
     else bcbsExpense += amt;
-    if (earliestInternal && b.date >= earliestInternal) {
-      if (income) bcbsIncomeInRange += amt;
-      else bcbsExpenseInRange += amt;
-    }
   }
 
   let internalAccrualWindowIncome = 0;
@@ -335,11 +322,6 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
       net: bcbsIncome - bcbsExpense,
       earliestDate: bcbsDates[0] ?? null,
       latestDate: bcbsDates[bcbsDates.length - 1] ?? null,
-    },
-    bcbsInRange: {
-      totalIncome: bcbsIncomeInRange,
-      totalExpense: bcbsExpenseInRange,
-      net: bcbsIncomeInRange - bcbsExpenseInRange,
     },
     accrual: {
       windowStart: BCBS_ACCRUAL_WINDOW_START,
