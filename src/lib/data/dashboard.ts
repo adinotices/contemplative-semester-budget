@@ -26,6 +26,7 @@ export interface CategoryActual {
   projected: number;
   total: number;
   variance: number;
+  notes: string | null;
 }
 
 async function getOrgSetting(key: string): Promise<number> {
@@ -103,7 +104,7 @@ export async function getBudgetVsActual(): Promise<CategoryActual[]> {
   const db = supabaseAdmin();
   const [{ data: categories, error: catErr }, { data: transactions, error: txErr }] =
     await Promise.all([
-      db.from("budget_categories").select("name, type, budget_target"),
+      db.from("budget_categories").select("name, type, budget_target, notes"),
       db.from("transactions").select("category, direction, amount, status"),
     ]);
   if (catErr) throw catErr;
@@ -129,6 +130,7 @@ export async function getBudgetVsActual(): Promise<CategoryActual[]> {
       projected,
       total,
       variance: c.type === "income" ? total - budgetTarget : budgetTarget - total,
+      notes: c.notes,
     };
   });
 }
