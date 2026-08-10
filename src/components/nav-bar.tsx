@@ -6,8 +6,6 @@ export async function NavBar() {
   const session = await auth();
   if (!session?.user) return null;
 
-  const isAdmin = session.user.role === "admin";
-
   return (
     <header className="border-b border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
@@ -25,11 +23,6 @@ export async function NavBar() {
             <Link href="/chat" className="hover:text-neutral-900 dark:hover:text-neutral-50">
               Chat
             </Link>
-            {isAdmin && (
-              <Link href="/admin" className="hover:text-neutral-900 dark:hover:text-neutral-50">
-                Admin
-              </Link>
-            )}
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm text-neutral-500 dark:text-neutral-400">

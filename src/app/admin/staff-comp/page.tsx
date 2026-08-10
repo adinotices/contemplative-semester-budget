@@ -1,7 +1,7 @@
 import { NavBar } from "@/components/nav-bar";
+import { DashboardTabs } from "@/components/dashboard-tabs";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/format";
-import { StaffCompForm } from "./staff-comp-form";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +15,8 @@ export default async function StaffCompPage() {
     <div className="flex min-h-screen flex-col">
       <NavBar />
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
+        <DashboardTabs />
         <h1 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Staff Compensation</h1>
-
-        <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
-          <StaffCompForm />
-        </div>
 
         <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
           <table className="w-full text-sm">
