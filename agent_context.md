@@ -4,7 +4,7 @@ Working notes on what's built, what's provisioned, and what's left. Read
 `docs/architecture.md` first for the full spec this was built from; this file
 tracks *implementation status* against that spec, not the spec itself.
 
-Last updated: 2026-08-10 (§2i: Discrepancy panel rebuilt on BCBS's full accrual picture — see below).
+Last updated: 2026-08-10 (§2j: full codebase review — money-path, injection, and bot-state fixes — see below).
 
 ---
 
@@ -300,6 +300,22 @@ Since these accrual figures aren't line-item data (just verified summary totals)
 Rebuilt `/admin/reconciliation`'s Discrepancy panel around this accrual comparison (with an explanatory note that most of the gap is accrual-vs-cash timing, not missing transactions), and reworked the "BCBS High Level Numbers" quadrant to show money-in-the-bank + accrual P&L up top, with the original 2-cash-account totals kept below for context/the unmatched-line-item detail tables, which are unchanged.
 
 **Note on branch**: pushed straight to `main` per the established pattern documented in §1 — the `claude/build-architecture-md-ua0g60` branch remains stale/unused.
+
+## 2j. Full codebase review + fixes (2026-08-10)
+
+User asked for a full review for bugs. Reviewed auth, middleware, every API route, the data layer, all UI pages, the SQL/RLS migrations, and the WhatsApp bot. Schema/RLS and `/chat` role-scoping were clean; ten real defects found and all fixed in one pass (commit `b1777de`).
+
+**The two that mattered most, both in the money path, both from the same root cause:** the Resend SDK returns `{ data, error }` and does **not** throw on API failures (verified in `node_modules/resend/dist/index.mjs` — `fetchRequest` catches non-OK responses and returns them). Both send sites ignored the result:
+- `/api/approve/[token]` marked every reimbursement `status='sent'` and set `approved_at` regardless, so a failed send left the batch looking delivered *and* burned the token (later attempts hit the 410 "already been sent" branch) — unrecoverable without manual DB edits. Now checks `error`, and **claims the batch before sending** via a conditional `update(...).is("approved_at", null).select()` so two concurrent approve clicks can't both mail the accountant (the old check-then-update was a genuine race). On send failure the claim is released so the link can be retried.
+- The weekly-digest cron returned `{ok:true, sent:true}` for undelivered mail; it now deletes the batch it just created, so there's no live token nobody received.
+
+**Security:** `reimbursementBatchEmail()` interpolated `submitted_by_name`/`description` — which come from the **public, unauthenticated** `/reimburse` form (only `z.string().trim().min(1)`, no sanitization) — raw into the HTML emailed to the approver, right beside the real "Approve & send to accountant" button. Anyone on the internet could inject a second, attacker-controlled button. Now escaped via `escapeHtml()`. Separately, `/api/email/inbound` (also public) only checked that the Svix headers *existed* — never verified them — and interpolated the sender-supplied filename straight into the Storage object path. Now does real HMAC-SHA256 verification over `{id}.{timestamp}.{body}` with `timingSafeEqual` and a 5-minute replay window (implemented with Node `crypto`; the `svix` package is not a dependency and wasn't worth adding for one route), plus `safeFilename()` reducing to a flat basename. **Note: this route now requires `RESEND_INBOUND_WEBHOOK_SECRET` and 500s without it** — already in `.env.example`, not yet set on Vercel. Phase 5 is blocked on BCBS exports anyway, so set it when that unblocks.
+
+**Correctness:** `formatCurrency` used `maximumFractionDigits: 0`, so the accountant email and approval screen rounded to whole dollars — and because subtotals were summed unrounded then rounded, displayed line items didn't add up to the displayed total (three $10.40 rows → "$10" each under a "$31" total). Now always exact cents, everywhere (this changes every currency figure in the UI, which the user approved).
+
+**WhatsApp bot:** `state.messages.slice(-MAX_HISTORY)` ran after pushing the user turn but before the assistant turn was appended, so the array was always even-length `[user, assistant, …]`; past 20 messages the slice dropped index 0 and handed the API a transcript starting with `assistant`, which the Anthropic API rejects with a 400 (confirmed against the API reference — "First message must be `user`"). Every session longer than ~10 exchanges died, and state only resets on successful submit. Replaced with `trimHistory()`, which trims to the window and then drops forward to the first user turn; verified over 40 simulated turns (0 violations, window stays ≤20). Also, an empty model reply was pushed into `state_json` *before* the `reply || "Sorry…"` fallback, so one blank turn would persist and be replayed as an empty content block on the next message — the fallback now resolves before the push.
+
+**Also fixed:** `hasReceipt` in both emails was derived from `receipt_url` while `buildReceiptAttachments()` silently skips failed downloads, so the accountant could see a row with no "(no receipt)" warning and no attachment — it's now derived from what actually attached (`buildReceiptAttachments` returns `sequenceLabel`; `toResendAttachments()` strips it before the API call). Roles were resolved only at sign-in, so revoking admin had no effect until the JWT expired — the `jwt` callback now re-reads `team_members` every 5 minutes (`ROLE_REFRESH_MS`), keeping existing claims on lookup error rather than downgrading a real admin on a transient failure. Dropped the now-unused `bcbsInRange` from `getReconciliationSummary()` (dead after §2i), fixed empty-state copy pointing at the removed admin page, and noted in migration 0002 that dropping `reimbursement_approvals` also drops the index/policy 0001 still declares.
 
 ## 2. Infrastructure — provisioned so far
 
