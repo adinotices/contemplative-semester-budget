@@ -15,7 +15,7 @@ export default async function CategoriesPage() {
     <div className="flex min-h-screen flex-col">
       <NavBar />
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
-        <h1 className="mb-6 text-2xl font-semibold">Budget Categories</h1>
+        <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Budget Categories</h1>
 
         <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-5">
           <CategoryForm />

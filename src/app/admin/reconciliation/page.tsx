@@ -32,7 +32,7 @@ export default async function ReconciliationPage() {
     <div className="flex min-h-screen flex-col">
       <NavBar />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
-        <h1 className="mb-2 text-2xl font-semibold">Reconciliation</h1>
+        <h1 className="mb-2 text-2xl font-semibold text-neutral-900">Reconciliation</h1>
         <p className="mb-6 text-sm text-neutral-500">
           Match internal ledger transactions against BCBS export lines. Requires BCBS exports to be
           imported first (§5, Phase 5 — blocked on a standing monthly export from Meredith).

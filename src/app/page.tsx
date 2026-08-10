@@ -19,7 +19,7 @@ export default async function DashboardPage() {
     <div className="flex min-h-screen flex-col">
       <NavBar />
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-        <h1 className="mb-6 text-2xl font-semibold">Budget Dashboard</h1>
+        <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Budget Dashboard</h1>
 
         <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard label="Total Income" value={formatCurrency(cash.totalIncome)} />
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
         </section>
 
         <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-5">
-          <h2 className="mb-4 text-lg font-medium">Budget vs. Actual</h2>
+          <h2 className="mb-4 text-lg font-medium text-neutral-900">Budget vs. Actual</h2>
           {budgetVsActual.length === 0 ? (
             <EmptyState message="No budget categories configured yet. Add them under Admin → Categories." />
           ) : (
@@ -68,7 +68,7 @@ export default async function DashboardPage() {
         </section>
 
         <section className="rounded-xl border border-neutral-200 bg-white p-5">
-          <h2 className="mb-4 text-lg font-medium">Category Breakdown</h2>
+          <h2 className="mb-4 text-lg font-medium text-neutral-900">Category Breakdown</h2>
           {breakdown.length === 0 ? (
             <EmptyState message="No transactions recorded yet." />
           ) : (

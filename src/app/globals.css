@@ -12,15 +12,16 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/*
+ * This app is a fixed light theme (internal admin tool, no dark mode
+ * designed) — layout.tsx sets bg/text color on <body> via Tailwind
+ * utilities. Deliberately no `prefers-color-scheme: dark` override here:
+ * an earlier version had one, but as an unlayered rule it beat the
+ * Tailwind utilities on <body> regardless of specificity (unlayered CSS
+ * always wins over @layer utilities), silently swapping body text to
+ * near-white on a dark-mode OS and making any heading that relied on
+ * inherited color unreadable on white cards.
+ */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }

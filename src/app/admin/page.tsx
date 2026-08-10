@@ -15,7 +15,7 @@ export default async function AdminHome() {
     <div className="flex min-h-screen flex-col">
       <NavBar />
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
-        <h1 className="mb-6 text-2xl font-semibold">Admin</h1>
+        <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Admin</h1>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <AdminCard
             href="/admin/categories"

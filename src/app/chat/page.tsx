@@ -12,7 +12,7 @@ export default async function ChatPage() {
     <div className="flex min-h-screen flex-col">
       <NavBar />
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-8">
-        <h1 className="mb-6 text-2xl font-semibold">Budget Chat</h1>
+        <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Budget Chat</h1>
         <ChatClient isAdmin={isAdmin} />
       </main>
     </div>
