@@ -4,7 +4,7 @@ Working notes on what's built, what's provisioned, and what's left. Read
 `docs/architecture.md` first for the full spec this was built from; this file
 tracks *implementation status* against that spec, not the spec itself.
 
-Last updated: 2026-08-10 (§2c: starting balance fix).
+Last updated: 2026-08-10 (§2e: UI polish pass — see below).
 
 ---
 
@@ -177,6 +177,45 @@ now-unreachable `src/app/api/admin/*` routes those forms posted to and
 `src/lib/require-admin.ts` (only consumer was those routes). Reconciliation
 still shows the unmatched-transactions tables read-only; matching itself
 would need a new UI if wanted again later.
+
+## 2e. UI polish pass: table formatting, grouping, Staff Comp pivot, Categories rewrite, Projected tab (2026-08-10)
+
+A run of small user-driven UI fixes to the admin/dashboard tables, done as
+individual commits:
+
+- Fixed missing `pr-3` column padding on several tables (Staff Comp,
+  dashboard Category Breakdown) where columns were running together —
+  same bug as the earlier categories-table fix.
+- Split single mixed-type tables into separate Income/Expense tables:
+  Budget Categories, dashboard Category Breakdown.
+- Added subtle zebra striping (`odd:`/`even:` bg) to flat data tables for
+  readability; skipped on tables that already use group headers +
+  indentation, to avoid visual conflict.
+- **Budget Categories page (`/admin/categories`) rewritten** from a live
+  numeric table into a static **Category Reference Guide** — reproduced
+  verbatim from the source spreadsheet's own "Category Reference" and
+  "Budget Mapping Reference" sheets (what each ledger category means +
+  how it rolls up into Budget vs Actual lines). No longer queries the DB;
+  this is documentation, not live numbers. If budget_categories data
+  changes, this page will NOT reflect it — it's a fixed reference.
+- **Budget vs. Actual and Budget Categories tables both group categories**
+  that share a combined budget line (Fundraising, Supplies & Subscriptions,
+  Other (Staff Dev, Misc)) under a heading row with aggregated
+  actual/projected/total/variance, member categories nested underneath.
+  Grouping is derived by parsing `budget_categories.notes` for the pattern
+  `under 'X' ($N combined)` — not hardcoded — so `getBudgetVsActual()` now
+  also selects `notes`.
+- **Staff Compensation page pivoted**: source data has one row per person
+  per period-type (`"Actual to date (2025–26)"` / `"Projected remaining
+  (2025–26)"`); the page now groups by (staff_name, period-year) into a
+  single row per person with Actual / Projected / Actual+Projected
+  columns, instead of duplicating each name across two rows.
+- **New `/admin/projected` sub-tab** listing every `transactions` row with
+  `status = 'projected'`, split into Income/Expense with per-section
+  totals — gives admins a detail view behind the dashboard's aggregate
+  "Projected Net" figure.
+- Sub-tab order is now: Overview, Categories, Projected, Staff
+  Compensation, Reconciliation (`src/components/dashboard-tabs-client.tsx`).
 
 ## 2. Infrastructure — provisioned so far
 
