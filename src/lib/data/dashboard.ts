@@ -175,3 +175,103 @@ function applyTuitionNetting(rows: CategoryActual[]): CategoryActual[] {
   const excluded = new Set([...TUITION_GROSS_CATEGORIES, ...TUITION_NET_DEDUCTIONS]);
   return [netRow, ...rows.filter((r) => !excluded.has(r.category))];
 }
+
+export interface ReconciliationSummary {
+  internal: {
+    startingBalance: number;
+    totalIncome: number;
+    totalExpense: number;
+    net: number;
+    earliestDate: string | null;
+    latestDate: string | null;
+  };
+  bcbs: {
+    totalIncome: number;
+    totalExpense: number;
+    net: number;
+    earliestDate: string | null;
+    latestDate: string | null;
+  };
+  /** BCBS totals restricted to the internal ledger's own date range, for an apples-to-apples comparison. */
+  bcbsInRange: {
+    totalIncome: number;
+    totalExpense: number;
+    net: number;
+  };
+  matchedCount: number;
+  bcbsCount: number;
+  transactionCount: number;
+}
+
+/** BCBS "Receive Money" lines are income; everything else (Payable Payment, Spend Money, etc.) is a cash outflow. */
+function isBcbsIncome(description: string): boolean {
+  return description.includes("Receive Money");
+}
+
+export async function getReconciliationSummary(): Promise<ReconciliationSummary> {
+  const db = supabaseAdmin();
+  const [{ data: txns, error: txErr }, { data: bcbs, error: bcbsErr }, { count: matchedCount }, startingBalance] =
+    await Promise.all([
+      db.from("transactions").select("date, direction, amount").eq("status", "actual"),
+      db.from("bcbs_transactions").select("date, description, amount"),
+      db.from("reconciliation_matches").select("id", { count: "exact", head: true }).eq("status", "matched"),
+      getOrgSetting("starting_balance"),
+    ]);
+  if (txErr) throw txErr;
+  if (bcbsErr) throw bcbsErr;
+
+  const txRows = txns ?? [];
+  const bcbsRows = bcbs ?? [];
+
+  let internalIncome = 0;
+  let internalExpense = 0;
+  const txDates = txRows.map((t) => t.date).sort();
+  for (const t of txRows) {
+    if (t.direction === "income") internalIncome += Number(t.amount);
+    else internalExpense += Number(t.amount);
+  }
+  const earliestInternal = txDates[0] ?? null;
+  const latestInternal = txDates[txDates.length - 1] ?? null;
+
+  let bcbsIncome = 0;
+  let bcbsExpense = 0;
+  let bcbsIncomeInRange = 0;
+  let bcbsExpenseInRange = 0;
+  const bcbsDates = bcbsRows.map((b) => b.date).sort();
+  for (const b of bcbsRows) {
+    const amt = Number(b.amount);
+    const income = isBcbsIncome(b.description ?? "");
+    if (income) bcbsIncome += amt;
+    else bcbsExpense += amt;
+    if (earliestInternal && b.date >= earliestInternal) {
+      if (income) bcbsIncomeInRange += amt;
+      else bcbsExpenseInRange += amt;
+    }
+  }
+
+  return {
+    internal: {
+      startingBalance,
+      totalIncome: internalIncome,
+      totalExpense: internalExpense,
+      net: startingBalance + internalIncome - internalExpense,
+      earliestDate: earliestInternal,
+      latestDate: latestInternal,
+    },
+    bcbs: {
+      totalIncome: bcbsIncome,
+      totalExpense: bcbsExpense,
+      net: bcbsIncome - bcbsExpense,
+      earliestDate: bcbsDates[0] ?? null,
+      latestDate: bcbsDates[bcbsDates.length - 1] ?? null,
+    },
+    bcbsInRange: {
+      totalIncome: bcbsIncomeInRange,
+      totalExpense: bcbsExpenseInRange,
+      net: bcbsIncomeInRange - bcbsExpenseInRange,
+    },
+    matchedCount: matchedCount ?? 0,
+    bcbsCount: bcbsRows.length,
+    transactionCount: txRows.length,
+  };
+}

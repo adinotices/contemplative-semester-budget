@@ -2,16 +2,17 @@ import { NavBar } from "@/components/nav-bar";
 import { DashboardTabs } from "@/components/dashboard-tabs";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/format";
+import { getReconciliationSummary } from "@/lib/data/dashboard";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReconciliationPage() {
   const db = supabaseAdmin();
 
-  const { data: matched } = await db
-    .from("reconciliation_matches")
-    .select("transaction_id, bcbs_transaction_id")
-    .neq("status", "unmatched");
+  const [summary, { data: matched }] = await Promise.all([
+    getReconciliationSummary(),
+    db.from("reconciliation_matches").select("transaction_id, bcbs_transaction_id").neq("status", "unmatched"),
+  ]);
 
   const matchedTxIds = new Set((matched ?? []).map((m) => m.transaction_id));
   const matchedBcbsIds = new Set((matched ?? []).map((m) => m.bcbs_transaction_id));
@@ -28,6 +29,9 @@ export default async function ReconciliationPage() {
   const unmatchedTx = (transactions ?? []).filter((t) => !matchedTxIds.has(t.id));
   const unmatchedBcbs = (bcbsTransactions ?? []).filter((b) => !matchedBcbsIds.has(b.id));
 
+  const incomeGap = summary.internal.totalIncome - summary.bcbsInRange.totalIncome;
+  const expenseGap = summary.internal.totalExpense - summary.bcbsInRange.totalExpense;
+
   return (
     <div className="flex min-h-screen flex-col">
       <NavBar />
@@ -35,15 +39,110 @@ export default async function ReconciliationPage() {
         <DashboardTabs />
         <h1 className="mb-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Reconciliation</h1>
         <p className="mb-6 text-sm text-neutral-500 dark:text-neutral-400">
-          Match internal ledger transactions against BCBS export lines. Requires BCBS exports to be
-          imported first (§5, Phase 5 — blocked on a standing monthly export from Meredith).
+          Internal ledger vs. BCBS export (Bill.com + Fidelity Checking cash activity).
         </p>
 
+        {/* Top: merged discrepancy panel */}
+        <section className="mb-6 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+          <h2 className="mb-1 text-lg font-medium text-neutral-900 dark:text-neutral-50">Discrepancy</h2>
+          <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-400">
+            BCBS activity restricted to {formatDate(summary.internal.earliestDate)}–today (the internal ledger&apos;s
+            own date range) so the two sides are comparable. {summary.matchedCount} of {summary.bcbsCount} BCBS
+            lines have been matched to a specific internal transaction so far.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <GapCard label="Income Gap (Internal − BCBS)" value={incomeGap} />
+            <GapCard label="Expense Gap (Internal − BCBS)" value={expenseGap} />
+          </div>
+        </section>
+
+        {/* Bottom-left / bottom-right */}
+        <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+            <h2 className="mb-4 text-lg font-medium text-neutral-900 dark:text-neutral-50">
+              High Level Internal Numbers
+            </h2>
+            <dl className="space-y-3">
+              <StatRow label="Starting Balance" value={formatCurrency(summary.internal.startingBalance)} />
+              <StatRow label="Total Income (actual)" value={formatCurrency(summary.internal.totalIncome)} />
+              <StatRow label="Total Expense (actual)" value={formatCurrency(summary.internal.totalExpense)} />
+              <StatRow
+                label="Current Money in Bank"
+                value={formatCurrency(summary.internal.net)}
+                highlight={summary.internal.net >= 0 ? "positive" : "negative"}
+              />
+            </dl>
+            <p className="mt-4 text-xs text-neutral-400 dark:text-neutral-500">
+              {formatDate(summary.internal.earliestDate)} – {formatDate(summary.internal.latestDate)} ·{" "}
+              {summary.transactionCount} transactions
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+            <h2 className="mb-4 text-lg font-medium text-neutral-900 dark:text-neutral-50">
+              BCBS High Level Numbers
+            </h2>
+            <dl className="space-y-3">
+              <StatRow label="Total Income" value={formatCurrency(summary.bcbs.totalIncome)} />
+              <StatRow label="Total Expense" value={formatCurrency(summary.bcbs.totalExpense)} />
+              <StatRow
+                label="Net Movement"
+                value={formatCurrency(summary.bcbs.net)}
+                highlight={summary.bcbs.net >= 0 ? "positive" : "negative"}
+              />
+            </dl>
+            <p className="mt-4 text-xs text-neutral-400 dark:text-neutral-500">
+              {formatDate(summary.bcbs.earliestDate)} – {formatDate(summary.bcbs.latestDate)} (all-time) ·{" "}
+              {summary.bcbsCount} lines, Bill.com + Fidelity Checking
+            </p>
+          </div>
+        </div>
+
+        <h2 className="mb-3 text-lg font-medium text-neutral-900 dark:text-neutral-50">Unmatched detail</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <UnmatchedTable title="Unmatched — internal ledger" rows={unmatchedTx} />
           <UnmatchedTable title="Unmatched — BCBS export" rows={unmatchedBcbs} />
         </div>
       </main>
+    </div>
+  );
+}
+
+function formatDate(date: string | null): string {
+  if (!date) return "—";
+  return date;
+}
+
+function StatRow({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: "positive" | "negative";
+}) {
+  const color =
+    highlight === "positive"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : highlight === "negative"
+        ? "text-red-600 dark:text-red-400"
+        : "text-neutral-900 dark:text-neutral-50";
+  return (
+    <div className="flex items-baseline justify-between">
+      <dt className="text-sm text-neutral-500 dark:text-neutral-400">{label}</dt>
+      <dd className={`text-lg font-semibold ${color}`}>{value}</dd>
+    </div>
+  );
+}
+
+function GapCard({ label, value }: { label: string; value: number }) {
+  const isZero = Math.abs(value) < 0.5;
+  const color = isZero ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400";
+  return (
+    <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-800/50">
+      <p className="text-sm text-neutral-500 dark:text-neutral-400">{label}</p>
+      <p className={`mt-1 text-2xl font-semibold ${color}`}>{formatCurrency(value)}</p>
     </div>
   );
 }
