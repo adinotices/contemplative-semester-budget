@@ -4,7 +4,7 @@ Working notes on what's built, what's provisioned, and what's left. Read
 `docs/architecture.md` first for the full spec this was built from; this file
 tracks *implementation status* against that spec, not the spec itself.
 
-Last updated: 2026-08-10 (§2h: BCBS general ledger import — see below).
+Last updated: 2026-08-10 (§2i: Discrepancy panel rebuilt on BCBS's full accrual picture — see below).
 
 ---
 
@@ -279,6 +279,27 @@ Importing all 2,021 rows verbatim would have double/triple-counted every real tr
 **Update — matching pass run (same day)**: ran an automated reconciliation pass, one-time via SQL rather than a UI feature (the Reconciliation page's manual-match form was removed in §2e; it's still read-only). Matched each `bcbs_transactions` row against `status='actual'` rows in `transactions` on: same direction (BCBS `Receive Money` → income, else expense) + exact amount + date within ±21 days. Where amount+date alone gave a unique candidate, matched directly (116); where multiple candidates tied, narrowed further by checking whether the transaction's payee last name appears in the BCBS description (+5 more, 121 total). Deliberately did **not** force a match when ambiguity remained after that — e.g. same person paid the identical amount twice in nearby months (payroll), or a generic "Various" BCBS description with several same-amount tuition payments — those 7 stay unmatched for a human to resolve by judgment, rather than risk a wrong link on real money.
 
 Result: **121 of 441** BCBS rows matched and written to `reconciliation_matches` (`matched_by = 'claude (automated amount+date match)'`, each with a `notes` explaining which heuristic resolved it). 320 remain unmatched — mostly Dec 2023–Dec 2024 BCBS activity that predates our internal ledger's Jan 2025 start (230 of the 320), plus 83 later ones with no equal-amount internal counterpart within the window (genuinely nothing to match, or our ledger simply doesn't have that line — worth a human skim, not a code problem) and the 7 flagged-ambiguous ones above. The Reconciliation page's existing unmatched-list queries picked this up immediately with no code changes, since they already exclude anything with a non-`unmatched` row in `reconciliation_matches`.
+
+## 2i. Discrepancy panel rebuilt on BCBS's full accrual picture (2026-08-10)
+
+§2h's Discrepancy panel only compared our ledger against BCBS's 2 cash accounts (Bill.com + Fidelity Checking), which understated how much BCBS activity actually exists — user pushed back ("where is this 90k number coming from?") and asked to assume BCBS's export represents *all* of Contemplative Semester's money, not just those 2 accounts.
+
+Investigated the GL Detail export's other ~14 account sections and confirmed: BCBS's income/expense-*recognition* accounts (9 of them — `3600 New Course Income`, `3857 Restricted Revenue: CS`, `4355 CS Expense`, etc.) are **accrual-basis**, not cash — they reconcile exactly to BCBS's official P&L totals when summed as `income = credit − debit`, `expense = debit − credit`. This is why BCBS's full picture is so much bigger than our cash-basis ledger: BCBS recognizes revenue (e.g. tuition) when earned/enrolled, not when cash lands.
+
+User also supplied a short "2026" YTD P&L PDF, confirmed emailed by Melissa on 2026-07-22 and explicitly labeled `Location is Contemplative Semester` (confirming it's CS-scoped, not org-wide) — Income $700,860.46, Expense $583,543.54, Net $117,316.92.
+
+Computed BCBS's full accrual picture for the internal ledger's window (2025-01-23–2026-07-22) by combining:
+- **2025 portion**: summed the 9 CS-scoped recognition accounts from the GL Detail export, 2025-01-23–2025-12-31 → income $291,841.14, expense $177,708.04.
+- **2026 portion**: the July 22 PDF's YTD figures above (superset of what the GL Detail covers for 2026, so no double-count).
+- **Combined**: income $992,701.60, expense $761,251.58.
+
+Internal cash-basis actuals for the identical window: income $615,113.00, expense $483,821.02 (ledger's own `status='actual'` rows span 2025-01-23–2026-06-25, entirely inside the window).
+
+Since these accrual figures aren't line-item data (just verified summary totals), hardcoded them as constants in `getReconciliationSummary()` (`src/lib/data/dashboard.ts`) rather than a table import — same pattern as `TUITION_NET_TARGET` in §2f. Also added BCBS's balance-sheet cash snapshot for the CS-restricted fund ($90,453.73 as of 2026-04-30, from the lifetime P&L export's Balance Sheet section) to directly answer "what does BCBS think is in the bank."
+
+Rebuilt `/admin/reconciliation`'s Discrepancy panel around this accrual comparison (with an explanatory note that most of the gap is accrual-vs-cash timing, not missing transactions), and reworked the "BCBS High Level Numbers" quadrant to show money-in-the-bank + accrual P&L up top, with the original 2-cash-account totals kept below for context/the unmatched-line-item detail tables, which are unchanged.
+
+**Note on branch**: pushed straight to `main` per the established pattern documented in §1 — the `claude/build-architecture-md-ua0g60` branch remains stale/unused.
 
 ## 2. Infrastructure — provisioned so far
 
