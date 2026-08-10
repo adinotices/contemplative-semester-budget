@@ -4,7 +4,7 @@ Working notes on what's built, what's provisioned, and what's left. Read
 `docs/architecture.md` first for the full spec this was built from; this file
 tracks *implementation status* against that spec, not the spec itself.
 
-Last updated: 2026-08-08.
+Last updated: 2026-08-09.
 
 ---
 
@@ -50,11 +50,33 @@ Key files if you need to pick up implementation work:
 - Security advisories: clean except the expected/intentional
   `category_summary` definer-view flag (documented in the migration)
 
-**Everything else is not provisioned yet**: no Vercel project, no Google
-OAuth client, no Twilio WhatsApp number, no Resend account/domain, no
-Anthropic API key wired into the deployed app. A `Vercel` MCP connector and a
-`Twilio` MCP connector are both available in this session (not yet used) —
-worth checking before falling back to raw API calls when picking these up.
+**Vercel**: project created and live.
+- Project `contemplative-semester-budget`, id `prj_RRWY10QprIhaub7WzLmvGGIXFiYU`,
+  under team `PausePal` (`team_KpKoA8AVXDl0z7CXKeMGpza1`)
+- Git-linked to `adinotices/contemplative-semester-budget`, production branch
+  `main` — pushes to `main` now auto-deploy
+- First production deploy is READY, no runtime errors: `/reimburse` and
+  `/login` render correctly. Live at `https://contemplative-semester-budget.vercel.app`
+  (also aliased at `https://contemplative-semester-budget-pause-pal.vercel.app`)
+- This was done via the Vercel REST API using a short-lived user-supplied
+  token (expired after use) — the Vercel *MCP connector* available in-session
+  cannot create git-linked projects or set env vars, only `deploy_to_vercel`
+  (file-tree, no git link) and read/observability tools. If you need to touch
+  project settings or env vars again and don't have a fresh token, that's the
+  gap to plan around.
+
+**Env vars set on Vercel** (production/preview/development):
+`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`AUTH_SECRET` (generated), `CRON_SECRET` (generated), `NEXT_PUBLIC_APP_URL`
+(`https://contemplative-semester-budget.vercel.app` — update once the real
+`budget.contemplativesemester.org` domain is attached).
+
+**Still not provisioned**: no Google OAuth client, no Twilio WhatsApp number,
+no Resend account/domain, no Anthropic API key, no `SUPABASE_SERVICE_ROLE_KEY`
+on Vercel yet (intentionally not exposed via the Supabase MCP connector —
+pull it from the Supabase dashboard, Project Settings → API). Until these are
+set, `/`, `/admin/*`, `/chat`, sign-in, and the WhatsApp webhook will error at
+runtime even though they build fine.
 
 ### Known env values (safe to reuse)
 ```
@@ -62,9 +84,11 @@ NEXT_PUBLIC_SUPABASE_URL=https://zarjqczhwzkumfhwylyy.supabase.co
 SUPABASE_URL=https://zarjqczhwzkumfhwylyy.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphcmpxY3pod3prdW1maHd5bHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMDI3NDMsImV4cCI6MjEwMTc3ODc0M30.ll-ew0XslXqP2Y1kaxmiYbE77gG27nOQDF_oOqhKBTg
 ```
-`SUPABASE_SERVICE_ROLE_KEY` is intentionally not exposed via the Supabase MCP
-connector — pull it from the Supabase dashboard (Project Settings → API)
-when wiring up Vercel env vars.
+`AUTH_SECRET` and `CRON_SECRET` were generated and set directly on Vercel —
+not reproduced here since they're already live; regenerate + rotate on
+Vercel if they ever need to change. `SUPABASE_SERVICE_ROLE_KEY` is
+intentionally not exposed via the Supabase MCP connector — pull it from the
+Supabase dashboard (Project Settings → API) when setting it on Vercel.
 
 ## 3. Current blocker
 
@@ -83,25 +107,29 @@ Run via the Supabase MCP `execute_sql` tool or the dashboard SQL editor.
 
 1. **Resolve the blocker above** — get the admin email(s), seed
    `team_members`.
-2. **Vercel**: create the project (Vercel MCP connector or the `vcp_...`
-   API token already supplied), link it to this GitHub repo/`main` branch,
-   set all env vars from `.env.example` (Supabase values above +
-   service role key + everything else below).
+2. **`SUPABASE_SERVICE_ROLE_KEY`**: pull from Supabase dashboard, set on
+   Vercel (needs a fresh API token or the dashboard — see §2 note above on
+   the Vercel MCP connector's gap).
 3. **Google OAuth**: create an OAuth client in Google Cloud Console,
-   redirect URI `https://<domain>/api/auth/callback/google`, set
-   `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` / `AUTH_SECRET`.
+   redirect URI `https://contemplative-semester-budget.vercel.app/api/auth/callback/google`
+   (update once the real domain is attached), set `AUTH_GOOGLE_ID` /
+   `AUTH_GOOGLE_SECRET` on Vercel (`AUTH_SECRET` already set).
 4. **Resend**: create account, verify a sending domain, get `RESEND_API_KEY`,
    set `EMAIL_FROM`, `APPROVER_EMAIL` (Aditya), `ACCOUNTANT_EMAILS`
    (Jaycel/Melissa).
-5. **Twilio WhatsApp**: provision a WhatsApp Business API number (Twilio MCP
-   connector is available in-session now), point its webhook at
-   `https://<domain>/api/whatsapp/webhook`, set `TWILIO_ACCOUNT_SID` /
-   `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_NUMBER`.
+5. **Twilio WhatsApp**: provision a WhatsApp Business API number (the Twilio
+   MCP connector in-session is authless/docs-only — it can look up API
+   references but can't provision anything; you need real Account SID/Auth
+   Token), point its webhook at
+   `https://contemplative-semester-budget.vercel.app/api/whatsapp/webhook`,
+   set `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_NUMBER`.
 6. **Anthropic**: set `ANTHROPIC_API_KEY` for `/chat` and the WhatsApp bot's
    Claude-driven conversation + receipt OCR.
-7. **DNS**: `budget.contemplativesemester.org` → CNAME → Vercel.
-8. **Cron**: set `CRON_SECRET`; confirm `vercel.json`'s weekly-digest
-   schedule (currently Monday 13:00 UTC) matches the actual review cadence.
+7. **DNS**: `budget.contemplativesemester.org` → CNAME → Vercel, then update
+   `NEXT_PUBLIC_APP_URL` and the Google OAuth redirect URI to match.
+8. **Cron**: `CRON_SECRET` is already set; confirm `vercel.json`'s
+   weekly-digest schedule (currently Monday 13:00 UTC) matches the actual
+   review cadence.
 9. **Data migration**: one-time manual import of the existing spreadsheet
    ledger into `transactions`, `students`, `staff_compensation` — no
    existing export format to script against yet, so this is data entry, not
