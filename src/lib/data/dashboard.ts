@@ -175,35 +175,3 @@ function applyTuitionNetting(rows: CategoryActual[]): CategoryActual[] {
   const excluded = new Set([...TUITION_GROSS_CATEGORIES, ...TUITION_NET_DEDUCTIONS]);
   return [netRow, ...rows.filter((r) => !excluded.has(r.category))];
 }
-
-export interface CategoryBreakdownRow {
-  category: string;
-  direction: "income" | "expense";
-  total: number;
-}
-
-export async function getCategoryBreakdown(): Promise<CategoryBreakdownRow[]> {
-  const db = supabaseAdmin();
-  const { data, error } = await db
-    .from("transactions")
-    .select("category, direction, amount")
-    .eq("status", "actual");
-  if (error) throw error;
-
-  const totals = new Map<string, CategoryBreakdownRow>();
-  for (const row of data ?? []) {
-    const key = `${row.category}::${row.direction}`;
-    const existing = totals.get(key);
-    if (existing) {
-      existing.total += Number(row.amount);
-    } else {
-      totals.set(key, {
-        category: row.category,
-        direction: row.direction as "income" | "expense",
-        total: Number(row.amount),
-      });
-    }
-  }
-
-  return Array.from(totals.values()).sort((a, b) => b.total - a.total);
-}

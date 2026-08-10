@@ -5,10 +5,8 @@ import { formatCurrency } from "@/lib/format";
 import {
   getBudgetVsActual,
   getCashPosition,
-  getCategoryBreakdown,
   getProjectedTotals,
   type CategoryActual,
-  type CategoryBreakdownRow,
 } from "@/lib/data/dashboard";
 
 export const dynamic = "force-dynamic";
@@ -52,11 +50,7 @@ function groupBudgetVsActual(rows: CategoryActual[]): BudgetGroup[] {
 }
 
 export default async function DashboardPage() {
-  const [cash, budgetVsActual, breakdown] = await Promise.all([
-    getCashPosition(),
-    getBudgetVsActual(),
-    getCategoryBreakdown(),
-  ]);
+  const [cash, budgetVsActual] = await Promise.all([getCashPosition(), getBudgetVsActual()]);
   const projected = await getProjectedTotals(cash);
 
   return (
@@ -200,22 +194,6 @@ export default async function DashboardPage() {
             </div>
           )}
         </section>
-
-        <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
-          <h2 className="mb-4 text-lg font-medium text-neutral-900 dark:text-neutral-50">Category Breakdown — Income (actual)</h2>
-          <CategoryBreakdownTable
-            rows={breakdown.filter((row) => row.direction === "income")}
-            emptyMessage="No income transactions recorded yet."
-          />
-        </section>
-
-        <section className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
-          <h2 className="mb-4 text-lg font-medium text-neutral-900 dark:text-neutral-50">Category Breakdown — Expense (actual)</h2>
-          <CategoryBreakdownTable
-            rows={breakdown.filter((row) => row.direction === "expense")}
-            emptyMessage="No expense transactions recorded yet."
-          />
-        </section>
       </main>
     </div>
   );
@@ -248,29 +226,4 @@ function StatCard({
 
 function EmptyState({ message }: { message: string }) {
   return <p className="text-sm text-neutral-500 dark:text-neutral-400">{message}</p>;
-}
-
-function CategoryBreakdownTable({ rows, emptyMessage }: { rows: CategoryBreakdownRow[]; emptyMessage: string }) {
-  if (rows.length === 0) return <EmptyState message={emptyMessage} />;
-  return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-          <th className="py-2 pr-3 font-medium">Category</th>
-          <th className="py-2 text-right font-medium">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr
-            key={row.category}
-            className="border-b border-neutral-100 odd:bg-white even:bg-neutral-50 dark:border-neutral-800 dark:odd:bg-neutral-900 dark:even:bg-white/[0.03]"
-          >
-            <td className="py-2 pr-3">{row.category}</td>
-            <td className="py-2 text-right">{formatCurrency(row.total)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
 }
