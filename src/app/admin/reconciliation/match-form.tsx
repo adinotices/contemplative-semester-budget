@@ -46,11 +46,11 @@ export function MatchForm({
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div>
-        <label className="mb-1 block text-xs font-medium text-neutral-600">Internal transaction</label>
+        <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">Internal transaction</label>
         <select
           value={transactionId}
           onChange={(e) => setTransactionId(e.target.value)}
-          className="w-64 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm"
+          className="w-64 rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
         >
           <option value="">Select…</option>
           {transactions.map((t) => (
@@ -61,11 +61,11 @@ export function MatchForm({
         </select>
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-neutral-600">BCBS export line</label>
+        <label className="mb-1 block text-xs font-medium text-neutral-600 dark:text-neutral-400">BCBS export line</label>
         <select
           value={bcbsId}
           onChange={(e) => setBcbsId(e.target.value)}
-          className="w-64 rounded-lg border border-neutral-300 px-2 py-1.5 text-sm"
+          className="w-64 rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
         >
           <option value="">Select…</option>
           {bcbsTransactions.map((b) => (
@@ -79,11 +79,11 @@ export function MatchForm({
         type="button"
         onClick={handleSubmit}
         disabled={submitting || !transactionId || !bcbsId}
-        className="rounded-lg bg-neutral-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+        className="rounded-lg bg-neutral-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
       >
         Mark matched
       </button>
-      {error && <p className="w-full text-sm text-red-600">{error}</p>}
+      {error && <p className="w-full text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }

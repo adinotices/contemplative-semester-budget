@@ -70,10 +70,10 @@ export default async function ApprovePage({
   const grandTotal = pendingRows.reduce((sum, row) => sum + Number(row.reimbursement_requests!.amount), 0);
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-12">
-      <div className="w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-xl font-semibold text-neutral-900">Review Reimbursement Batch</h1>
-        <p className="mb-6 text-sm text-neutral-500">
+    <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-12 dark:bg-neutral-950">
+      <div className="w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-8 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+        <h1 className="mb-1 text-xl font-semibold text-neutral-900 dark:text-neutral-50">Review Reimbursement Batch</h1>
+        <p className="mb-6 text-sm text-neutral-500 dark:text-neutral-400">
           {pendingRows.length} item{pendingRows.length === 1 ? "" : "s"} — this is exactly what will be
           emailed to the accountant, receipts attached, if you approve.
         </p>
@@ -83,10 +83,10 @@ export default async function ApprovePage({
             const subtotal = groupRows.reduce((sum, row) => sum + Number(row.reimbursement_requests!.amount), 0);
             return (
               <div key={name}>
-                <h2 className="mb-2 text-sm font-semibold text-neutral-900">{name}</h2>
+                <h2 className="mb-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">{name}</h2>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-neutral-200 text-left text-neutral-500">
+                    <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
                       <th className="py-1.5 pr-2 font-medium">ID</th>
                       <th className="py-1.5 pr-2 font-medium">Description</th>
                       <th className="py-1.5 pr-2 text-right font-medium">Amount</th>
@@ -95,8 +95,8 @@ export default async function ApprovePage({
                   </thead>
                   <tbody>
                     {groupRows.map((row) => (
-                      <tr key={row.reimbursement_requests!.id} className="border-b border-neutral-100">
-                        <td className="py-1.5 pr-2 font-mono text-neutral-500">R{row.sequence_number}</td>
+                      <tr key={row.reimbursement_requests!.id} className="border-b border-neutral-100 dark:border-neutral-800">
+                        <td className="py-1.5 pr-2 font-mono text-neutral-500 dark:text-neutral-400">R{row.sequence_number}</td>
                         <td className="py-1.5 pr-2">{row.reimbursement_requests!.description}</td>
                         <td className="py-1.5 pr-2 text-right">
                           {formatCurrency(Number(row.reimbursement_requests!.amount))}
@@ -112,7 +112,7 @@ export default async function ApprovePage({
                               View
                             </a>
                           ) : (
-                            <span className="text-amber-600">none</span>
+                            <span className="text-amber-600 dark:text-amber-400">none</span>
                           )}
                         </td>
                       </tr>
@@ -131,7 +131,7 @@ export default async function ApprovePage({
           })}
         </div>
 
-        <p className="mb-6 text-lg font-bold text-neutral-900">Grand total: {formatCurrency(grandTotal)}</p>
+        <p className="mb-6 text-lg font-bold text-neutral-900 dark:text-neutral-50">Grand total: {formatCurrency(grandTotal)}</p>
 
         <ApproveActions token={token} />
       </div>
@@ -141,10 +141,10 @@ export default async function ApprovePage({
 
 function StatusCard({ title, message }: { title: string; message: string }) {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 text-center shadow-sm">
-        <h1 className="mb-1 text-lg font-semibold text-neutral-900">{title}</h1>
-        <p className="text-sm text-neutral-500">{message}</p>
+    <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-12 dark:bg-neutral-950">
+      <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+        <h1 className="mb-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50">{title}</h1>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">{message}</p>
       </div>
     </div>
   );

@@ -13,14 +13,15 @@
 }
 
 /*
- * This app is a fixed light theme (internal admin tool, no dark mode
- * designed) — layout.tsx sets bg/text color on <body> via Tailwind
- * utilities. Deliberately no `prefers-color-scheme: dark` override here:
- * an earlier version had one, but as an unlayered rule it beat the
- * Tailwind utilities on <body> regardless of specificity (unlayered CSS
- * always wins over @layer utilities), silently swapping body text to
- * near-white on a dark-mode OS and making any heading that relied on
- * inherited color unreadable on white cards.
+ * Dark mode is handled entirely via Tailwind `dark:` utility classes
+ * (system-preference-based) on individual elements throughout the app —
+ * deliberately NOT via a plain, unlayered `prefers-color-scheme: dark`
+ * rule here. An earlier version had one, and as an unlayered rule it beat
+ * layered Tailwind utilities on <body> regardless of specificity
+ * (unlayered CSS always wins over @layer utilities), silently swapping
+ * body text to near-white and making any element without its own
+ * explicit `dark:` class unreadable. Every element that needs a dark
+ * variant should get an explicit `dark:` class, not rely on this file.
  */
 body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;

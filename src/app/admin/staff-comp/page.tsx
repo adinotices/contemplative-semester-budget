@@ -15,16 +15,16 @@ export default async function StaffCompPage() {
     <div className="flex min-h-screen flex-col">
       <NavBar />
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
-        <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Staff Compensation</h1>
+        <h1 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Staff Compensation</h1>
 
-        <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-5">
+        <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
           <StaffCompForm />
         </div>
 
-        <div className="rounded-xl border border-neutral-200 bg-white p-5">
+        <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-neutral-200 text-left text-neutral-500">
+              <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
                 <th className="py-2 font-medium">Staff</th>
                 <th className="py-2 font-medium">Period</th>
                 <th className="py-2 text-right font-medium">Amount</th>
@@ -34,17 +34,17 @@ export default async function StaffCompPage() {
             </thead>
             <tbody>
               {(rows ?? []).map((r) => (
-                <tr key={r.id} className="border-b border-neutral-100">
+                <tr key={r.id} className="border-b border-neutral-100 dark:border-neutral-800">
                   <td className="py-2">{r.staff_name}</td>
                   <td className="py-2">{r.period}</td>
                   <td className="py-2 text-right">{formatCurrency(Number(r.amount))}</td>
-                  <td className="py-2 capitalize text-neutral-500">{r.status}</td>
-                  <td className="py-2 text-neutral-500">{r.notes}</td>
+                  <td className="py-2 capitalize text-neutral-500 dark:text-neutral-400">{r.status}</td>
+                  <td className="py-2 text-neutral-500 dark:text-neutral-400">{r.notes}</td>
                 </tr>
               ))}
               {(rows ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-4 text-center text-neutral-400">
+                  <td colSpan={5} className="py-4 text-center text-neutral-400 dark:text-neutral-500">
                     No staff compensation records yet.
                   </td>
                 </tr>

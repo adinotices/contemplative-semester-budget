@@ -15,7 +15,7 @@ export default async function AdminHome() {
     <div className="flex min-h-screen flex-col">
       <NavBar />
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
-        <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Admin</h1>
+        <h1 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Admin</h1>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <AdminCard
             href="/admin/categories"
@@ -42,10 +42,10 @@ function AdminCard({ href, title, description }: { href: string; title: string; 
   return (
     <Link
       href={href}
-      className="block rounded-xl border border-neutral-200 bg-white p-5 hover:border-neutral-400"
+      className="block rounded-xl border border-neutral-200 bg-white p-5 hover:border-neutral-400 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-600"
     >
-      <h2 className="font-medium text-neutral-900">{title}</h2>
-      <p className="mt-1 text-sm text-neutral-500">{description}</p>
+      <h2 className="font-medium text-neutral-900 dark:text-neutral-50">{title}</h2>
+      <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{description}</p>
     </Link>
   );
 }

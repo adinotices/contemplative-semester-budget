@@ -32,14 +32,14 @@ export default async function ReconciliationPage() {
     <div className="flex min-h-screen flex-col">
       <NavBar />
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
-        <h1 className="mb-2 text-2xl font-semibold text-neutral-900">Reconciliation</h1>
-        <p className="mb-6 text-sm text-neutral-500">
+        <h1 className="mb-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Reconciliation</h1>
+        <p className="mb-6 text-sm text-neutral-500 dark:text-neutral-400">
           Match internal ledger transactions against BCBS export lines. Requires BCBS exports to be
           imported first (§5, Phase 5 — blocked on a standing monthly export from Meredith).
         </p>
 
-        <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-5">
-          <h2 className="mb-3 text-sm font-medium text-neutral-700">Manual match</h2>
+        <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+          <h2 className="mb-3 text-sm font-medium text-neutral-700 dark:text-neutral-300">Manual match</h2>
           <MatchForm
             transactions={unmatchedTx.map((t) => ({
               id: t.id,
@@ -69,20 +69,20 @@ function UnmatchedTable({
   rows: { id: string; date: string; description: string | null; amount: number | string }[];
 }) {
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-5">
-      <h2 className="mb-3 text-sm font-medium text-neutral-700">{title}</h2>
+    <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+      <h2 className="mb-3 text-sm font-medium text-neutral-700 dark:text-neutral-300">{title}</h2>
       <table className="w-full text-sm">
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id} className="border-b border-neutral-100">
-              <td className="py-2 text-neutral-500">{r.date}</td>
+            <tr key={r.id} className="border-b border-neutral-100 dark:border-neutral-800">
+              <td className="py-2 text-neutral-500 dark:text-neutral-400">{r.date}</td>
               <td className="py-2">{r.description}</td>
               <td className="py-2 text-right">{formatCurrency(Number(r.amount))}</td>
             </tr>
           ))}
           {rows.length === 0 && (
             <tr>
-              <td className="py-4 text-center text-neutral-400">Nothing unmatched.</td>
+              <td className="py-4 text-center text-neutral-400 dark:text-neutral-500">Nothing unmatched.</td>
             </tr>
           )}
         </tbody>

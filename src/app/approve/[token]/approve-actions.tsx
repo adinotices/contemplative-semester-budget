@@ -31,11 +31,11 @@ export function ApproveActions({ token }: { token: string }) {
       <button
         onClick={approve}
         disabled={pending}
-        className="w-full rounded-lg bg-neutral-900 px-4 py-3 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-50"
+        className="w-full rounded-lg bg-neutral-900 px-4 py-3 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
       >
         {pending ? "Sending…" : "Approve & send to accountant"}
       </button>
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }

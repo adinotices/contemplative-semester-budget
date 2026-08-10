@@ -15,16 +15,16 @@ export default async function CategoriesPage() {
     <div className="flex min-h-screen flex-col">
       <NavBar />
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
-        <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Budget Categories</h1>
+        <h1 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Budget Categories</h1>
 
-        <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-5">
+        <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
           <CategoryForm />
         </div>
 
-        <div className="rounded-xl border border-neutral-200 bg-white p-5">
+        <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-neutral-200 text-left text-neutral-500">
+              <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
                 <th className="py-2 font-medium">Name</th>
                 <th className="py-2 font-medium">Type</th>
                 <th className="py-2 text-right font-medium">Target</th>
@@ -33,16 +33,16 @@ export default async function CategoriesPage() {
             </thead>
             <tbody>
               {(categories ?? []).map((c) => (
-                <tr key={c.id} className="border-b border-neutral-100">
+                <tr key={c.id} className="border-b border-neutral-100 dark:border-neutral-800">
                   <td className="py-2">{c.name}</td>
-                  <td className="py-2 capitalize text-neutral-500">{c.type}</td>
+                  <td className="py-2 capitalize text-neutral-500 dark:text-neutral-400">{c.type}</td>
                   <td className="py-2 text-right">{formatCurrency(Number(c.budget_target))}</td>
-                  <td className="py-2 text-neutral-500">{c.notes}</td>
+                  <td className="py-2 text-neutral-500 dark:text-neutral-400">{c.notes}</td>
                 </tr>
               ))}
               {(categories ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-4 text-center text-neutral-400">
+                  <td colSpan={4} className="py-4 text-center text-neutral-400 dark:text-neutral-500">
                     No categories yet.
                   </td>
                 </tr>
