@@ -166,24 +166,24 @@ sandbox number `whatsapp:+14155238886` — this isn't actually read by app
 code (only `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` are, for signature
 verification and media download), it's informational only.
 
-Two things only the user can do (no API — Twilio's WhatsApp Sandbox config
-is Console-UI-only, confirmed via a 404 on `.../Sandbox.json`):
-1. Text the sandbox's join code to `+1 415 523 8886` from WhatsApp to
-   activate (expires ~72h, needs re-joining periodically — the sandbox's
-   main limitation, hence "sandbox first" rather than jumping straight to
-   production).
-2. Set the sandbox's "when a message comes in" webhook to
-   `https://contemplative-semester-budget.vercel.app/api/whatsapp/webhook`
-   (POST) in the Console.
+**Confirmed working end-to-end**: user joined the sandbox (`join mass-native`)
+and set the webhook in the Console. Verified two ways — Twilio's own message
+log showed a real bot reply ("Hi there! 👋 I'm here to help you submit a
+reimbursement request...", not the generic Twilio echo), and Vercel runtime
+logs showed `POST /api/whatsapp/webhook 200`. The full chain (Twilio →
+webhook → Claude conversation → reply) works.
 
-Not yet confirmed whether either of those happened — next session should
-check before assuming the bot is reachable. Upgrading to a real WhatsApp
-Business sender (matches the architecture doc's original intent) is a
-later step once the sandbox flow is proven out; needs a Meta Business
-Manager account connected on Twilio's end.
+Remember the sandbox needs **re-joining every ~72h** — if the bot suddenly
+stops responding, that's the first thing to check (have the user text the
+join code again), not a code regression. Upgrading to a real WhatsApp
+Business sender (matches the architecture doc's original intent) is a later
+step once this is proven out further; needs a Meta Business Manager account
+connected on Twilio's end, which the user doesn't have set up yet.
 
-Everything else — dashboard, chat, sign-in, reimbursement/approval/digest
-emails — is fully live.
+Everything — dashboard, chat, sign-in, reimbursement/approval/digest
+emails, and now the WhatsApp bot — is fully live. Only a real end-to-end
+reimbursement submission (web or WhatsApp) through to an actual sent
+accountant email hasn't been tested yet (see §2a).
 
 ### Known env values (safe to reuse)
 ```
