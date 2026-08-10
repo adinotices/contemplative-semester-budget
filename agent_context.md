@@ -20,7 +20,7 @@ the last commit.
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Schema + `/` dashboard (read-only) | Built |
-| 2 | `/reimburse` form + weekly digest cron + `/approve/[token]` + accountant email | Built |
+| 2 | `/reimburse` form + weekly digest cron + `/approve/[token]` + accountant email | Built — redesigned as one batch email, see §2a |
 | 3 | `/chat`, role-scoped per §7 | Built |
 | 4 | WhatsApp bot (§8), same `reimbursement_requests` table | Built |
 | 5 | Reconciliation admin tool | Scaffolded — manual matching UI works; bulk-import parsing for BCBS exports is stubbed in `/api/email/inbound` pending the actual export file format |
@@ -36,6 +36,49 @@ Key files if you need to pick up implementation work:
 - `src/lib/data/chat-context.ts`, `src/app/api/chat/` — role-scoped chatbot
 - `src/lib/whatsapp/bot.ts`, `src/app/api/whatsapp/webhook/` — WhatsApp bot
 - `src/app/admin/` — categories / staff comp / reconciliation tools
+
+## 2a. Reimbursement approval — redesigned as one batch (2026-08-10)
+
+The originally-built per-item approval flow (§2 above, one email/link per
+reimbursement) was replaced per explicit user request with a single-batch
+design:
+
+- **`src/lib/email/templates.ts`** — `reimbursementBatchEmail()`, one shared
+  template for both the review email and the final accountant email: rows
+  grouped by submitter name, subtotal per group, grand total, optional
+  Approve button (review email only), optional greeting (accountant email
+  only).
+- **`src/lib/email/attachments.ts`** — downloads each receipt from Supabase
+  Storage and returns real Resend attachments (not links), filename
+  prefixed with the row's sequence ID (`R1-receipt.jpg`) so recipients can
+  match attachments to table rows by hand.
+- **`src/app/api/cron/weekly-digest/route.ts`** — queries all pending
+  requests, creates **one** `digest_batches` row + one `digest_batch_items`
+  row per request (storing the stable `R1, R2, ...` sequence numbers),
+  sends **one** email to `APPROVER_EMAIL` with every item + all receipts
+  attached + one Approve link.
+- **`src/app/approve/[token]/`** — the link goes to a confirmation page
+  (not a raw one-click GET) showing exactly what will be sent, with a
+  single "Approve & send to accountant" button. On submit, the API route
+  re-sends the *identical* grouped email (same sequence IDs, same
+  attachments) to `ACCOUNTANT_EMAILS`, with a greeting ("Hey Jaycel, hope
+  you're doing well...") and no button. All items still `pending` at
+  approval time move straight to `sent`; anything already processed by a
+  different batch is silently skipped (defensive, guards against a
+  double-cron-run edge case).
+- Schema: `digest_batches` + `digest_batch_items` (migration
+  `0002_digest_batches.sql`) replaced the old `reimbursement_approvals`
+  table (dropped — confirmed empty, never used in production).
+- The `/reimburse` public form also dropped the email/phone fields per the
+  same request — only name, description, amount now.
+- **Not yet done**: no real end-to-end smoke test with a live email send
+  (deliberately avoided creating fake data / sending real test emails to
+  Jaycel or Aditya without asking first). Worth doing before relying on
+  this for real: submit a real `/reimburse` request, trigger
+  `/api/cron/weekly-digest` (needs the `Authorization: Bearer $CRON_SECRET`
+  header), confirm the review email arrives with the grouped table +
+  attachment, click through and approve, confirm Jaycel/Aditya/Maya all
+  receive the final email.
 
 ## 2. Infrastructure — provisioned so far
 
