@@ -4,7 +4,7 @@ Working notes on what's built, what's provisioned, and what's left. Read
 `docs/architecture.md` first for the full spec this was built from; this file
 tracks *implementation status* against that spec, not the spec itself.
 
-Last updated: 2026-08-10 (§2f: Tuition net-target fix — see below).
+Last updated: 2026-08-10 (§2h: BCBS general ledger import — see below).
 
 ---
 
@@ -255,6 +255,28 @@ Numbers pulled fresh from the original upload
 (`/root/.claude/uploads/.../a4d35f6e-CS_Ledger__Updated_June72026.xlsx`,
 `Budget vs Actual` sheet) — that file is still present in this environment
 if similar spot-checks are needed again.
+
+## 2g. Email-derived transactions added, reconciled against existing PLANNED placeholders (2026-08-10)
+
+User connected their `contemplativesemester.org` Gmail and asked for a review of sent mail + threads with Melissa (Gopnik, BCBS ED) and Jaycel (Arcedera, BCBS Accounts Payable) from 6/7/26 to present, to find new transactions. Found ~19 candidates; user approved the confirmed ones, told me to add the uncertain ones as `projected`, and to disregard one ambiguous item (Kyan Aldrich reimbursement — dollar amount only existed in an unreadable email screenshot).
+
+**Important discovery mid-import**: the original ledger import (§2b) already seeded a full year of forward-looking `status='projected'` placeholder rows for known recurring items (monthly Aditya compensation, quarterly Cornerstone insurance, per-retreat Shea reimbursements, etc.) — many with a `PLANNED` description prefix, some without. Blindly inserting "new" rows from email confirmations created duplicates. Caught this via a systematic amount-match sweep (no date-window restriction — the placeholder dates are service-period dates, sometimes months away from the actual payment date) against the full `transactions` table, both for my own inserts and separately for the CSV import below. Where a match existed, converted the pre-existing placeholder to `status='actual'` (correcting date/description as needed) instead of inserting; only pushed genuinely new rows. **Lesson for future imports into this table: always amount-match against the full table with no date restriction before inserting, given this seeded-placeholder pattern.**
+
+Net result: 4 new transactions (Victoria Cary $350, Chas DiCapua $150 — actual; Brent Beresford $800, Potash Hill security deposit $1,000 income — projected, both still unconfirmed) plus 9 placeholder→actual conversions. Verified actual income held exactly at $615,113 (unchanged — confirms no double-counted income), actual expenses rose $8,183.44 to $483,821.02 net of the genuine additions.
+
+Also incorporated `2026_Reimbursement_Request_Responses` (a 307-row Google Form export of individual receipt submissions, Jan–Jul 2026). Cross-checked every row's dollar amount against the full transactions table (again, no date window) — 300 already matched existing rows; 6 were genuinely new (4 old March receipts that had fallen through the cracks — Luc: Co-op parmesan $13.53 + gas $37.96; Michelle Chai: pizza $217.07 + EV charging $26.19, all `actual`; 2 recent unconfirmed — Mailchimp $261.37, stamp reimbursements $65.60, both `projected`).
+
+Wrote directly via the Supabase Management API using a still-valid `sbp_...` token found in this session's own transcript (originally supplied ~8 hours earlier, tagged "1 day" validity) — no fresh token needed this time, but don't assume that'll be true next session; get a new one if the old one 401s.
+
+## 2h. BCBS general ledger detail imported into `bcbs_transactions` (2026-08-10)
+
+User supplied three BCBS-side finance exports: two summary P&L PDFs/xlsx (2026 YTD and lifetime-to-date through Apr 2026 — useful as context/rough sanity-check totals, not source data, since they're accrual-basis rollups) and one `General Ledger Detail` xlsx (2,021 rows, full double-entry GL for the "Contemplative Semester" location, Nov 2023–Apr 2026, organized into ~16 account sections e.g. `1072 - Bill.com Money Out Clearing`, `2000 - Accounts Payable`, `3857 - Restricted Revenue: Contemplative Semester`).
+
+Importing all 2,021 rows verbatim would have double/triple-counted every real transaction, since double-entry GL posts each event to multiple accounts (e.g., one vendor payment appears in both `1072` and `2000 - Accounts Payable`). Extracted only the two **cash/bank accounts** — `1072 - Bill.com Money Out Clearing` (vendor payments processed via Bill.com, 415 rows) and `1100 - Barre Fidelity Checking Account` (direct deposits/receipts + a few non-Bill.com payments, 26 rows) — since those represent one row per real-world cash event, the same semantics as our own single-entry `transactions` table, and are therefore the right scope for the Reconciliation page's matching purpose. The accrual/AP/revenue-recognition accounts were deliberately excluded.
+
+**441 rows inserted** into `bcbs_transactions` (previously empty): `date`, `account_code` (the GL account name), `description` (`{Source} — {Description}`, e.g. "Payable Payment — Payment: Potash Hill"), `amount` (positive, whichever of debit/credit was non-zero), `source_file` set to the original xlsx name. Total $1,240,237.84 across both accounts, Dec 2023–Apr 2026. No code changes needed — `/admin/reconciliation` already queries this table dynamically (`dynamic = "force-dynamic"`), so the newly imported rows show up as "Unmatched — BCBS export" immediately without a redeploy.
+
+Not yet done: actually matching these against our `transactions` rows (the reconciliation UI itself lost its manual-match form in an earlier UI-cleanup pass, §2e — it's read-only now, listing unmatched on both sides). If matching is wanted, that's a follow-up feature, not just a data task.
 
 ## 2. Infrastructure — provisioned so far
 
