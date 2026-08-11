@@ -18,7 +18,7 @@ export function DashboardTabsClient() {
   const pathname = usePathname();
 
   return (
-    <div className="mb-6 flex items-center gap-1 overflow-x-auto border-b border-neutral-200 dark:border-neutral-800">
+    <div className="no-scrollbar mb-6 flex items-center gap-1 overflow-x-auto border-b border-neutral-200 dark:border-neutral-800">
       {TABS.map((tab) => {
         const active = tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
         return (

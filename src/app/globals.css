@@ -36,3 +36,18 @@
 body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/*
+ * Hides the scrollbar while leaving the element scrollable. Used on the
+ * dashboard tab strip, which overflows once there are enough tabs — a
+ * permanent scrollbar sits right on top of the active-tab underline and
+ * reads as a stray rule across the page. The clipped last tab is the
+ * affordance that there is more to the right.
+ */
+@utility no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+  &::-webkit-scrollbar {
+    display: none; /* Chromium, Safari */
+  }
+}
