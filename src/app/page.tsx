@@ -14,7 +14,9 @@ export default async function DashboardPage() {
       <NavBar />
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
         <DashboardTabs />
-        <h1 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Budget Dashboard</h1>
+        {/* Visually redundant with the "Overview" tab, but kept for screen
+            readers and the document outline. */}
+        <h1 className="sr-only">Budget Dashboard</h1>
 
         <section className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-4">
           <StatCard label="Starting Balance (Jan 2025)" value={formatCurrency(cash.startingBalance)} small />
