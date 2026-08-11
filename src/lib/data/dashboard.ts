@@ -239,6 +239,21 @@ export interface ReconciliationSummary {
     bcbsRestrictedFund: number;
     gap: number;
   };
+  /**
+   * The April fund balance carried forward to the P&L date using BCBS's own
+   * implied movement. DERIVED, not stated by BCBS — see
+   * BCBS_2026_THROUGH_GL_CLOSE.
+   */
+  rollForward: {
+    asOf: string;
+    bcbsFundAtGlClose: number;
+    impliedIncome: number;
+    impliedExpense: number;
+    impliedMovement: number;
+    bcbsImplied: number;
+    internal: number;
+    gap: number;
+  };
   matchedCount: number;
   bcbsCount: number;
   transactionCount: number;
@@ -322,6 +337,20 @@ const BCBS_ACCRUAL = {
 const BCBS_RESTRICTED_FUND = 192567.71;
 const BCBS_RESTRICTED_FUND_ASOF = "2026-04-30";
 
+/**
+ * BCBS's calendar-2026 income/expense through the GL's 2026-04-30 cutoff,
+ * summed from the same 9 recognition accounts as BCBS_2025. Subtracting
+ * this from their 2026-07-22 P&L yields the movement between the two
+ * documents, which is the only way to carry their April fund balance
+ * forward to the P&L date.
+ *
+ * The result is an ESTIMATE assembled from two differently-sourced files,
+ * and it adds net income to a restricted-fund balance — those do not move
+ * identically once releases to unrestricted are involved. Label it as
+ * derived wherever it is shown; it is not a figure BCBS has stated.
+ */
+const BCBS_2026_THROUGH_GL_CLOSE = { income: 650523.4, expense: 519448.14 };
+
 export async function getReconciliationSummary(): Promise<ReconciliationSummary> {
   const db = supabaseAdmin();
   const [
@@ -333,6 +362,7 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
     { data: asOfTxns, error: asOfErr },
     { data: incomeSplitTxns, error: incomeSplitErr },
     { data: projectedExpTxns, error: projectedExpErr },
+    { data: throughPlDateTxns, error: throughPlDateErr },
   ] = await Promise.all([
     db.from("transactions").select("date, direction, amount").eq("status", "actual"),
     db.from("bcbs_transactions").select("date, description, amount"),
@@ -357,6 +387,11 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
       .gte("date", BCBS_ACCRUAL_WINDOW_START)
       .lte("date", BCBS_ACCRUAL_WINDOW_END),
     db.from("transactions").select("amount").eq("status", "projected").eq("direction", "expense"),
+    db
+      .from("transactions")
+      .select("direction, amount")
+      .eq("status", "actual")
+      .lte("date", BCBS_ACCRUAL_WINDOW_END),
   ]);
   if (txErr) throw txErr;
   if (bcbsErr) throw bcbsErr;
@@ -364,6 +399,7 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
   if (asOfErr) throw asOfErr;
   if (incomeSplitErr) throw incomeSplitErr;
   if (projectedExpErr) throw projectedExpErr;
+  if (throughPlDateErr) throw throughPlDateErr;
 
   const txRows = txns ?? [];
   const bcbsRows = bcbs ?? [];
@@ -421,6 +457,28 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
     BCBS_2026_YTD.hemeraGrant;
   const bcbsCreditCardFees = BCBS_2025.creditCardFees + BCBS_2026_YTD.creditCardFees;
   const bcbsOperatingExpense = BCBS_ACCRUAL.expense - BCBS_2026_YTD.scholarships;
+
+  // Carry BCBS's April fund balance forward to the P&L date using the
+  // movement implied between their own two documents.
+  const bcbs2026PlIncome =
+    BCBS_2026_YTD.creditCardFees +
+    BCBS_2026_YTD.newCourseIncome +
+    BCBS_2026_YTD.hemeraGrant +
+    BCBS_2026_YTD.restrictedRevenue;
+  const bcbs2026PlExpense =
+    BCBS_2026_YTD.legalServices + BCBS_2026_YTD.csExpense + BCBS_2026_YTD.scholarships;
+  const impliedIncome = bcbs2026PlIncome - BCBS_2026_THROUGH_GL_CLOSE.income;
+  const impliedExpense = bcbs2026PlExpense - BCBS_2026_THROUGH_GL_CLOSE.expense;
+  const impliedMovement = impliedIncome - impliedExpense;
+  const bcbsImplied = BCBS_RESTRICTED_FUND + impliedMovement;
+
+  let throughPlIncome = 0;
+  let throughPlExpense = 0;
+  for (const t of throughPlDateTxns ?? []) {
+    if (t.direction === "income") throughPlIncome += Number(t.amount);
+    else throughPlExpense += Number(t.amount);
+  }
+  const internalAtPlDate = startingBalance + throughPlIncome - throughPlExpense;
 
   const bridge = {
     income: [
@@ -481,6 +539,16 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
       bcbsExpense: BCBS_ACCRUAL.expense,
       incomeGap: internalAccrualWindowIncome - BCBS_ACCRUAL.income,
       expenseGap: internalAccrualWindowExpense - BCBS_ACCRUAL.expense,
+    },
+    rollForward: {
+      asOf: BCBS_ACCRUAL_WINDOW_END,
+      bcbsFundAtGlClose: BCBS_RESTRICTED_FUND,
+      impliedIncome,
+      impliedExpense,
+      impliedMovement,
+      bcbsImplied,
+      internal: internalAtPlDate,
+      gap: internalAtPlDate - bcbsImplied,
     },
     bridge,
     fundBalance: {

@@ -2,7 +2,7 @@ import { NavBar } from "@/components/nav-bar";
 import { DashboardTabs } from "@/components/dashboard-tabs";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/format";
-import { getReconciliationSummary } from "@/lib/data/dashboard";
+import { getReconciliationSummary, type ReconciliationSummary } from "@/lib/data/dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -70,8 +70,9 @@ export default async function ReconciliationPage() {
           </div>
 
           <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-800/50">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+            <p className="flex items-center text-sm text-neutral-500 dark:text-neutral-400">
               Fund Balance Gap at {formatDate(summary.fundBalance.asOf)} (Internal − BCBS)
+              <RollForwardTooltip roll={summary.rollForward} glCloseAsOf={summary.fundBalance.asOf} />
             </p>
             <p
               className={`mt-1 text-2xl font-semibold ${
@@ -232,6 +233,73 @@ function GapTooltip({ lines, total }: { lines: BridgeLine[]; total: number }) {
           <span className="shrink-0 font-mono text-xs font-semibold text-neutral-900 dark:text-neutral-50">
             {formatCurrency(total)}
           </span>
+        </span>
+      </span>
+    </span>
+  );
+}
+
+/**
+ * The April gap is measured on the day BCBS's ledger happens to stop, which
+ * was days after the semester ended — the worst possible moment, with a pile
+ * of obligations recognised by BCBS and not yet paid by us. Carrying their
+ * balance forward to the P&L date shows how much of that gap was timing.
+ * Every figure here is derived rather than stated by BCBS, so the panel says
+ * so twice.
+ */
+function RollForwardTooltip({
+  roll,
+  glCloseAsOf,
+}: {
+  roll: ReconciliationSummary["rollForward"];
+  glCloseAsOf: string;
+}) {
+  const row = (label: string, value: string, strong = false) => (
+    <span className="flex items-baseline justify-between gap-3 py-0.5">
+      <span className={`text-xs ${strong ? "font-medium text-neutral-700 dark:text-neutral-200" : "text-neutral-500 dark:text-neutral-400"}`}>
+        {label}
+      </span>
+      <span
+        className={`shrink-0 font-mono text-xs ${strong ? "font-semibold text-neutral-900 dark:text-neutral-50" : "text-neutral-700 dark:text-neutral-300"}`}
+      >
+        {value}
+      </span>
+    </span>
+  );
+  return (
+    <span className="group relative inline-block align-middle">
+      <button
+        type="button"
+        aria-label="Show the estimated gap at a later date"
+        className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-neutral-400 text-[10px] font-semibold leading-none text-neutral-500 transition-colors hover:border-neutral-600 hover:text-neutral-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 dark:border-neutral-600 dark:text-neutral-400 dark:hover:border-neutral-400 dark:hover:text-neutral-200"
+      >
+        i
+      </button>
+      <span className="pointer-events-none invisible absolute left-0 top-6 z-20 w-[24rem] max-w-[85vw] rounded-lg border border-neutral-200 bg-white p-3 text-left opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 dark:border-neutral-700 dark:bg-neutral-900">
+        <span className="mb-1 block text-xs font-medium text-neutral-700 dark:text-neutral-200">
+          Most of this gap is the snapshot date
+        </span>
+        <span className="mb-2 block text-[11px] leading-snug text-neutral-500 dark:text-neutral-400">
+          BCBS&apos;s ledger stops days after the semester ended, when they had recognised obligations we had not yet
+          paid. Carrying their balance forward to {formatDate(roll.asOf)} using the movement implied between their own
+          two documents:
+        </span>
+        {row(`BCBS fund balance at ${formatDate(glCloseAsOf)}`, formatCurrency(roll.bcbsFundAtGlClose))}
+        {row(
+          `Implied movement to ${formatDate(roll.asOf)}`,
+          formatCurrency(roll.impliedMovement),
+        )}
+        <span className="mb-1 mt-0.5 block border-t border-neutral-100 pt-1 dark:border-neutral-800">
+          {row(`BCBS implied at ${formatDate(roll.asOf)}`, formatCurrency(roll.bcbsImplied), true)}
+        </span>
+        {row(`This ledger at ${formatDate(roll.asOf)}`, formatCurrency(roll.internal))}
+        <span className="mt-1 block border-t border-neutral-100 pt-1 dark:border-neutral-800">
+          {row("Estimated gap at that date", formatCurrency(roll.gap), true)}
+        </span>
+        <span className="mt-2 block rounded bg-amber-50 p-1.5 text-[11px] leading-snug text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          Derived, not stated by BCBS. It adds net income to a restricted-fund balance and stitches two
+          differently-sourced files, so treat it as an estimate. A general ledger export through July would give this
+          figure directly.
         </span>
       </span>
     </span>
