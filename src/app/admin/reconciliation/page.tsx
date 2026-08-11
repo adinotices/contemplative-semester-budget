@@ -45,10 +45,14 @@ export default async function ReconciliationPage() {
         <section className="mb-6 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
           <h2 className="mb-1 text-lg font-medium text-neutral-900 dark:text-neutral-50">Discrepancy</h2>
           <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-400">
-            {formatDate(accrual.windowStart)}–{formatDate(accrual.windowEnd)}: our cash-basis ledger (money actually
-            received/paid) vs. BCBS&apos;s accrual-basis P&amp;L for Contemplative Semester (revenue/expense
-            recognized when earned, e.g. tuition booked in full at enrollment — not when cash moves). Most of this
-            gap is timing, not missing money.
+            {formatDate(accrual.windowStart)}–{formatDate(accrual.windowEnd)}. The two figures below are{" "}
+            <strong className="font-medium text-neutral-700 dark:text-neutral-300">expected to be large</strong> —
+            they compare a cash-basis ledger to an accrual-basis one, which is a units mismatch, not a shortfall.
+            BCBS books scholarships as an expense ($240,260 here) where we have no row at all, because a scholarship
+            is a discount rather than money leaving an account; that single line accounts for most of the expense
+            gap. Likewise BCBS recognized $477,400 of course income in one entry when the course ran, while we
+            recorded tuition payment by payment as it arrived. Neither side is wrong. Gaps near zero here would be
+            the surprising result.
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <GapCard
@@ -78,9 +82,13 @@ export default async function ReconciliationPage() {
             </p>
             <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">
               {formatCurrency(summary.fundBalance.internal)} in this ledger vs{" "}
-              {formatCurrency(summary.fundBalance.bcbsRestrictedFund)} in BCBS&apos;s restricted fund — the one date
-              both sets of books cover. This is the most directly comparable pair of numbers on the page; the two
-              gaps above are cash-basis vs accrual-basis and are expected to differ.
+              {formatCurrency(summary.fundBalance.bcbsRestrictedFund)} in BCBS&apos;s restricted fund at the one date
+              both sets of books cover. Unlike the two gaps above, both sides here are answering the same question —
+              what the program holds at a moment in time — which makes this the one worth asking BCBS about.{" "}
+              <strong className="font-medium">It is still not a pure like-for-like:</strong> ours is cash in minus
+              cash out, while theirs is a net-asset balance that also reflects bills incurred but unpaid ($38,565.80
+              in payables) and cash collected but not yet earned ($115,300 deferred), both of which legitimately push
+              our figure higher than theirs. Treat this as a question for Melissa, not a proven discrepancy.
             </p>
           </div>
           <p className="mt-4 text-xs text-neutral-400 dark:text-neutral-500">
