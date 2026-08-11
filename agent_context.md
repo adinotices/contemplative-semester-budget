@@ -373,6 +373,19 @@ The sheet's own stray "Total Projected Tuition $83,340" cell does not tie to any
 
 **`students` table is still empty.** The schema in 0001_init.sql fits this data and `chat-context.ts` already selects from it for admins, so populating it would give admin /chat real student financials. Not done: it puts names, scholarship awards and balances into Postgres, and it needs columns the table lacks (college credit, deposit, statuses, follow-up). User's call.
 
+## 2o. Custom domain budget.contemplativesemester.org (2026-08-11)
+
+Vercel side is done: domain added to `contemplative-semester-budget` and verified instantly (the apex `contemplativesemester.org` was already a verified domain on the PausePal team). `NEXT_PUBLIC_APP_URL` changed from the `.vercel.app` URL to `https://budget.contemplativesemester.org` and production redeployed — that var is `NEXT_PUBLIC_*`, so it is inlined at build time and a redeploy is required for it to take effect. Its only consumer is the approve link in the weekly digest email.
+
+**`AUTH_URL` was deliberately NOT set.** Auth.js v5 trusts the host on Vercel and derives the OAuth callback from the incoming request, so both the custom domain and the `.vercel.app` URLs keep working. Pinning `AUTH_URL` to one host would break sign-in on the other.
+
+Deployment protection is Vercel SSO with `all_except_custom_domains`, so the custom domain is publicly reachable and gated only by the app's own Google allowlist — which is the intended behaviour. The `.vercel.app` URLs stay behind Vercel SSO.
+
+Two steps that are outside Vercel and were left to the user:
+
+1. **DNS.** `contemplativesemester.org` runs on Google Cloud DNS (`ns-cloud-a1..a4.googledomains.com`). Needs a CNAME `budget` → `dba3f7418688f39c.vercel-dns-017.com.` (Vercel's rank-1 recommendation; generic `cname.vercel-dns.com.` also works). Until then `/v6/domains/.../config` reports `misconfigured: true`.
+2. **Google OAuth.** Client `670852086060-rl77077m0kqij6jeiraf295isn4hmavl…` needs `https://budget.contemplativesemester.org/api/auth/callback/google` added to Authorized redirect URIs and the origin added to Authorized JavaScript origins. **Sign-in on the new domain fails with redirect_uri_mismatch until this is done.** Keep the existing `.vercel.app` entries.
+
 ## 2. Infrastructure — provisioned so far
 
 **Supabase** (via Supabase MCP connector):
