@@ -29,6 +29,16 @@ export const LEDGER_WINDOW_START = "2025-02-01";
 export const LEDGER_WINDOW_END = "2026-08-09";
 export const CSV_FILENAME = "cs_2025-26_actuals_by_budget_category.csv";
 
+/**
+ * The tuition figures, named so the Student Tuition tab can compare its roster
+ * against exactly the same numbers this page prints rather than re-typing them.
+ * All four also appear in the rows below — change them here, not there.
+ */
+export const BCBS_GROSS_TUITION = 477400.0;
+export const BCBS_SCHOLARSHIPS = 240260.0;
+export const BCBS_NET_TUITION = 237140.0;
+export const LEDGER_TUITION_CASH = 228840.0;
+
 export type Basis = "cash" | "accrual (BCBS)" | "mixed";
 
 export interface SnapshotRow {
@@ -179,10 +189,10 @@ export const BELOW_THE_LINE_ROWS: SnapshotRow[] = [
     category: "Scholarships",
     budget: 200000.0,
     actual2025: 0.0,
-    actual2026: 240260.0,
-    totalActual: 240260.0,
+    actual2026: BCBS_SCHOLARSHIPS,
+    totalActual: BCBS_SCHOLARSHIPS,
     stillProjected: 0.0,
-    actualPlusProjected: 240260.0,
+    actualPlusProjected: BCBS_SCHOLARSHIPS,
     variance: -40260.0,
     basis: "accrual (BCBS)",
     notes:
@@ -208,8 +218,8 @@ export const TUITION_ROWS: SnapshotRow[] = [
     category: "Tuition, if all students paid in full",
     budget: 462000.0,
     actual2025: null,
-    actual2026: 477400.0,
-    totalActual: 477400.0,
+    actual2026: BCBS_GROSS_TUITION,
+    totalActual: BCBS_GROSS_TUITION,
     stillProjected: null,
     actualPlusProjected: null,
     variance: -15400.0,
@@ -220,8 +230,8 @@ export const TUITION_ROWS: SnapshotRow[] = [
     category: "Less: scholarships awarded",
     budget: null,
     actual2025: null,
-    actual2026: -240260.0,
-    totalActual: -240260.0,
+    actual2026: -BCBS_SCHOLARSHIPS,
+    totalActual: -BCBS_SCHOLARSHIPS,
     stillProjected: null,
     actualPlusProjected: null,
     variance: null,
@@ -232,8 +242,8 @@ export const TUITION_ROWS: SnapshotRow[] = [
     category: "Tuition, net of scholarships",
     budget: 253064.0,
     actual2025: null,
-    actual2026: 237140.0,
-    totalActual: 237140.0,
+    actual2026: BCBS_NET_TUITION,
+    totalActual: BCBS_NET_TUITION,
     stillProjected: null,
     actualPlusProjected: null,
     variance: 15924.0,
@@ -245,9 +255,9 @@ export const TUITION_ROWS: SnapshotRow[] = [
     budget: null,
     actual2025: 19000.0,
     actual2026: 209840.0,
-    totalActual: 228840.0,
+    totalActual: LEDGER_TUITION_CASH,
     stillProjected: 0.0,
-    actualPlusProjected: 228840.0,
+    actualPlusProjected: LEDGER_TUITION_CASH,
     variance: null,
     basis: "cash",
     notes: "our ledger; excl. college-credit & admin fees",

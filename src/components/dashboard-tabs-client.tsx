@@ -11,6 +11,7 @@ const TABS = [
   { href: "/admin/staff-comp", label: "Staff Compensation" },
   { href: "/admin/reconciliation", label: "Reconciliation" },
   { href: "/admin/program-costs", label: "Second CS Program Costs" },
+  { href: "/admin/student-tuition", label: "Student Tuition" },
 ];
 
 export function DashboardTabsClient() {

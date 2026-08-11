@@ -355,6 +355,24 @@ Lives in `src/lib/data/program-costs-snapshot.ts` as plain constants, rendered b
 
 Arithmetic verified at build time: every column sums from the row constants to the declared subtotal and grand total, and every row's Actual + Projected and variance (budget − (actual + projected)) recompute exactly.
 
+## 2n. Student Tuition tab added; roster cross-checked against the ledger (2026-08-11)
+
+Transcribed the "Tuition payments" tab of *Copy of CS 2026 Accepted Student Tracking.xlsx* (31 students) into `src/lib/data/student-tuition-snapshot.ts` and rendered it at `/admin/student-tuition`. Frozen snapshot, same pattern as §2m. Cells are transcribed verbatim including the wrong-looking ones; `getDataQualityFlags()` derives the problems from the rows so re-transcribing clears them rather than leaving a stale list.
+
+Roster totals: gross tuition **479,200**, scholarships **240,760**, net **238,440**, deposits **40,800**, outstanding **5,800**. Against BCBS accrual (477,400 / 240,260 / 237,140) the roster runs 1,800 / 500 / 1,300 high. Both sides are accrual and both include the college-credit component, so those are comparable. The ledger's 228,840 tuition cash is deliberately **not** differenced against the roster — it excludes college-credit and admin fees while the roster includes them, so the subtraction would be meaningless.
+
+Cross-checked name-by-name against `transactions` (queried live, 2026-08-11):
+
+- **Ties out exactly:** projected Tuition is 5,800 in two named rows = Amiya 3,300 + Meera 2,500, the tracker's only two open balances.
+- **12 college-credit fees paid (48,000) vs 12 students marked for it — but not the same 12.** Malcolm **Brown** paid a fee on 2025-12-13 while his sheet row says *"No, moved pmt to tuition"*; Malcolm **Wilson-Ahlstrom** is marked "Yes" with no fee on the ledger and an anomalous 8,000 tuition against everyone else's 19,400. Exactly one name off in each direction and both are Malcolms — likely a mix-up, but which record is wrong is unconfirmed. **Do not "fix" either without checking the source.**
+- **5 admin fees paid (500) vs 4 marked "Yes".** Sophie Duerr paid on 2025-12-15 with her column set to "No". The 100 shows as a deposit either way, so no money is missing — the column is mislabelled.
+
+Other flagged rows: Zenichi Moriki's scholarship (17,400) exceeds his tuition (15,400) by 2,000, which cannot be right; Danyoung Kim has a 15,400 scholarship with a blank tuition, dragging roster net down by that amount; Madelyn Huston has blank tuition despite a paid college-credit fee on 2026-06-07; Abby Heckler's scholarship is blank rather than 0.
+
+The sheet's own stray "Total Projected Tuition $83,340" cell does not tie to anything. It *does* equal the net tuition of the first 18 roster rows if Zenichi's scholarship were 13,400 — i.e. a SUM over a range that stopped being extended, computed before that cell changed. Recorded as a lead, not a figure to use.
+
+**`students` table is still empty.** The schema in 0001_init.sql fits this data and `chat-context.ts` already selects from it for admins, so populating it would give admin /chat real student financials. Not done: it puts names, scholarship awards and balances into Postgres, and it needs columns the table lacks (college credit, deposit, statuses, follow-up). User's call.
+
 ## 2. Infrastructure — provisioned so far
 
 **Supabase** (via Supabase MCP connector):
