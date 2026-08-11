@@ -4,7 +4,7 @@ Working notes on what's built, what's provisioned, and what's left. Read
 `docs/architecture.md` first for the full spec this was built from; this file
 tracks *implementation status* against that spec, not the spec itself.
 
-Last updated: 2026-08-10 (§2k: accounting review of all figures — see below; migration 0006 applied and verified).
+Last updated: 2026-08-10 (§2l: May/June/July compensation reconciled from Gmail — see below. **Read §3b before touching the numbers: monthly compensation conversion is a standing task that has silently overstated cash twice.**)
 
 ---
 
@@ -333,6 +333,18 @@ User asked whether the numbers make sense and whether there are accounting error
 
 **Migration `0006_accounting_review_fixes.sql` — APPLIED and verified** (2026-08-10, after the user explicitly authorized it; earlier attempts were refused by the sandbox's permission classifier, not by Supabase — the token was valid and reads worked throughout). Post-apply verification: `staff_compensation` totals 226,819.52 actual / 59,221.79 projected, matching the Compensation category in `transactions` exactly on both sides; zero orphaned categories; row counts 36→38 staff and 18→19 categories; `transactions` untouched, so actual income/expense held at 615,113.00 / 483,821.02. The en-dash period labels survived (the migration copies them off an existing row rather than retyping), so the per-person pivot on the Staff Comp page still groups correctly. That page's drift banner is self-checking, so it now renders the green "totals agree" state with no redeploy.
 
+## 2l. May/June/July compensation reconciled from Gmail (2026-08-10)
+
+User asked for the latest transaction from Jaycel. Latest was that same day: "Re: July Compensation", Jaycel confirming *"I have it posted in BILL"* for $2,000 (requested Aug 9). It was still `projected` in the ledger — and checking the neighbours turned up that **May had been confirmed by Jaycel on June 8 and never converted either**, so cash was overstated by $4,000.
+
+Untangling which row was which mattered more than it looked. Three rows sat in the May–July region: a `projected` placeholder dated 2026-06-07 ("PLANNED May compensation"), an `actual` row dated 2026-06-17 ("June compensation"), and a `projected` placeholder dated 2026-07-01 ("PLANNED July compensation"). The user's read was that the Jun-17 row was May's, on the reasoning that a month is paid the following month — but that rule makes *both* June-dated rows "for May", so it can't disambiguate them, and converting the placeholder on top of the existing row would have double-counted May $2,000 while leaving June with no row at all despite Jaycel confirming it on Jul 17. What actually breaks the tie is the ledger's own dating convention: every prior actual row lands on the exact day Aditya emailed Jaycel (Jan→02-04, Feb→03-05, Mar→04-07, Apr→05-05). 2026-06-07 is exactly the May request date; 2026-06-17 matches no request date at all. Presented both options; user chose A.
+
+Applied: May placeholder → `actual` "May Compensation" (2026-06-07 kept); the 2026-06-17 row re-dated to 2026-07-16 and relabelled "June Compensation"; July placeholder → `actual` "July Compensation" dated 2026-08-09. Then re-synced `staff_compensation` (Aditya +4,000 actual / −4,000 projected → 20,300 / 4,000) so the self-check banner stays green — verified both sides at 230,819.52 actual / 55,221.79 projected.
+
+Net effect: actual expense 483,821.02 → **487,821.02**; Current Money in Bank 192,644.22 → **188,644.22**; Projected Net −75,390.24 → **−71,390.24**. Income untouched. Because it's a reclassification, "Projected Remaining After All Obligations" is unchanged — a useful sanity check if this is ever re-run.
+
+The recurring version of this is written up as a standing task in **§3b** — read that before the next monthly pass.
+
 ## 2. Infrastructure — provisioned so far
 
 **Supabase** (via Supabase MCP connector):
@@ -454,6 +466,41 @@ Supabase dashboard (Project Settings → API) when setting it on Vercel.
 
 Sign-in, dashboard, chat, and now email (Resend, verified domain) are all
 confirmed working in production. Only Twilio/WhatsApp remains.
+
+## 3b. STANDING TASK — monthly: convert paid compensation from projected to actual
+
+**Run this at the start of any session, and any time the user asks about the numbers.** It has silently overstated cash twice now.
+
+The ledger seeds forward-looking `status='projected'` placeholders for Aditya's monthly compensation (`PLANNED <Month> compensation`, one per month). Nothing converts them automatically. On 2026-08-10 both May *and* July were sitting unconverted — May had been confirmed by Jaycel on **June 8**, two months earlier — overstating Current Money in Bank by $4,000.
+
+**The cadence** (established, holds for Oct 2025 – Jul 2026 without exception):
+- Compensation for month *M* is requested from Jaycel in month *M+1*, usually in the first ~10 days.
+- Aditya emails `Jaycel.Arcedera@npcm.com`, subject like `<Month> Compensation`, cc `maya@`.
+- Jaycel replies within ~1 day: *"posted in BILL"* / *"all set"* / *"got it"*.
+- **The ledger row is dated the day Aditya emailed** — not the reply date, not the service month. Verified against Jan→2026-02-04, Feb→2026-03-05, Mar→2026-04-07, Apr→2026-05-05, May→2026-06-07, Jun→2026-07-16, Jul→2026-08-09.
+- `description` is the **service** month (`May Compensation`), so date and description intentionally disagree by ~a month. Don't "fix" that.
+
+**Procedure**: search Gmail `to:Jaycel.Arcedera@npcm.com subject:compensation`, find threads Jaycel has confirmed, then for each one with a matching `PLANNED` placeholder still at `status='projected'`:
+
+```sql
+update transactions
+   set status='actual', date='<date Aditya emailed>', description='<Month> Compensation'
+ where category='Compensation' and payee='Aditya Aswani'
+   and status='projected' and description='PLANNED <Month> compensation';
+```
+
+**Then re-sync `staff_compensation`** or the Staff Compensation tab's self-check banner turns amber (it compares itself to the ledger on every render — that banner is the tripwire for this whole class of drift):
+
+```sql
+update staff_compensation set amount = amount + <converted>  where staff_name='Aditya Aswani' and period like 'Actual%';
+update staff_compensation set amount = amount - <converted>  where staff_name='Aditya Aswani' and period like 'Projected%';
+```
+
+**Two cautions learned the hard way:**
+1. **Don't convert a placeholder without checking for an existing actual row in the same window.** On 2026-08-10 the user believed an actual row dated 2026-06-17 was May's; it was June's, entered with a rough date. Converting the May placeholder on top of it would have double-counted $2,000 and left June with no row at all. The request-date rule above is what disambiguates — use it, not the service month.
+2. **"Posted in BILL" is not "paid."** Jaycel distinguishes them (cf. the Cornerstone thread: *"the payment has already cleared our bank and was processed on June 25"*). The ledger's working convention treats her posting confirmation as sufficient for `actual`; that's the user's call, but be aware it's a convention, not a bank fact.
+
+Next expected: **August compensation**, requestable from ~2026-09-01, placeholder already sits at `2026-08-01`. September follows at `2026-09-01`.
 
 ## 4. Next steps, roughly in order
 
