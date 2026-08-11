@@ -345,6 +345,16 @@ Net effect: actual expense 483,821.02 → **487,821.02**; Current Money in Bank 
 
 The recurring version of this is written up as a standing task in **§3b** — read that before the next monthly pass.
 
+## 2m. Program Costs tab added as a frozen snapshot (2026-08-11)
+
+A colleague wanted the cohort's spend expressed in the categories from the uploaded *Projected Income & Expenses by Program Year 2025/2026* CSV, not the ones the dashboard uses. That mapping is manual (e.g. "Supplies & Subscriptions" = our Supplies + Marketing & Outreach) and one of its rows — Scholarships, $240,260, BCBS GL acct 4301 — has no ledger counterpart at all, because a scholarship is a tuition discount and no cash moves. There is no live query that reproduces this table, so it is **deliberately static**.
+
+Lives in `src/lib/data/program-costs-snapshot.ts` as plain constants, rendered by `/admin/program-costs`, with `/admin/program-costs/download` serving the same constants as a CSV (BOM-prefixed so Excel doesn't mangle the em dashes). Both the table and the CSV are built from that one module so they cannot drift. The page carries a "Frozen snapshot — last updated August 11, 2026" banner and an amber footer explaining the mixed basis.
+
+**Do not wire this to the database, and do not add the $240,260 scholarship figure to the dashboard's cash totals.** The grand total of $770,896.26 answers "what did the program cost"; the Budget vs. Actual tab answers "what left the bank". Both are right; they are different questions. To refresh: re-derive the figures, bump `SNAPSHOT_DATE`, edit the rows.
+
+Arithmetic verified at build time: every column sums from the row constants to the declared subtotal and grand total, and every row's Actual + Projected and variance (budget − (actual + projected)) recompute exactly.
+
 ## 2. Infrastructure — provisioned so far
 
 **Supabase** (via Supabase MCP connector):
