@@ -29,6 +29,16 @@ export interface CategoryActual {
   notes: string | null;
 }
 
+/** Server-side currency formatting for prose baked into the data layer. */
+function formatUsd(amount: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 async function getOrgSetting(key: string): Promise<number> {
   const db = supabaseAdmin();
   const { data, error } = await db
@@ -208,6 +218,17 @@ export interface ReconciliationSummary {
     expenseGap: number;
   };
   /**
+   * Line-by-line decomposition of each gap above. Each list sums exactly to
+   * its gap, so the explanation on screen is always arithmetic rather than
+   * commentary.
+   */
+  bridge: {
+    income: Array<{ label: string; amount: number; detail: string }>;
+    expense: Array<{ label: string; amount: number; detail: string }>;
+    /** Already-incurred obligations we carry as `projected` — context for the expense residual. */
+    projectedExpenseTotal: number;
+  };
+  /**
    * Fund balance at the one date both sets of books cover. This replaces an
    * earlier "money in the bank" card that misread BCBS's accumulated net
    * assets as cash — see BCBS_RESTRICTED_FUND below.
@@ -246,11 +267,42 @@ function isBcbsIncome(description: string): boolean {
  */
 const BCBS_ACCRUAL_WINDOW_START = "2025-01-23";
 const BCBS_ACCRUAL_WINDOW_END = "2026-07-22";
-const BCBS_ACCRUAL_2025 = { income: 291841.14, expense: 177708.04 };
-const BCBS_ACCRUAL_2026_YTD = { income: 700860.46, expense: 583543.54 };
+
+/**
+ * Kept as individual account lines rather than pre-summed totals so the
+ * gap breakdown shown on the page is computed from the same figures as the
+ * gap itself and cannot drift out of agreement with it.
+ */
+const BCBS_2025 = {
+  creditCardFees: 809.07,
+  restrictedRevenue: 271032.07,
+  collegeAccreditation: 20000.0,
+  csExpense: 177708.04,
+};
+const BCBS_2026_YTD = {
+  creditCardFees: 1266.7,
+  newCourseIncome: 477400.0, // one entry, 2026-02-28, when the course ran
+  hemeraGrant: 50311.0,
+  restrictedRevenue: 171882.76,
+  legalServices: 1250.0,
+  csExpense: 342033.54,
+  scholarships: 240260.0, // a discount on tuition — no cash ever leaves, so no row exists on our side
+};
+
 const BCBS_ACCRUAL = {
-  income: BCBS_ACCRUAL_2025.income + BCBS_ACCRUAL_2026_YTD.income,
-  expense: BCBS_ACCRUAL_2025.expense + BCBS_ACCRUAL_2026_YTD.expense,
+  income:
+    BCBS_2025.creditCardFees +
+    BCBS_2025.restrictedRevenue +
+    BCBS_2025.collegeAccreditation +
+    BCBS_2026_YTD.creditCardFees +
+    BCBS_2026_YTD.newCourseIncome +
+    BCBS_2026_YTD.hemeraGrant +
+    BCBS_2026_YTD.restrictedRevenue,
+  expense:
+    BCBS_2025.csExpense +
+    BCBS_2026_YTD.legalServices +
+    BCBS_2026_YTD.csExpense +
+    BCBS_2026_YTD.scholarships,
 };
 
 /**
@@ -279,6 +331,8 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
     startingBalance,
     { data: accrualWindowTxns, error: accrualWindowErr },
     { data: asOfTxns, error: asOfErr },
+    { data: incomeSplitTxns, error: incomeSplitErr },
+    { data: projectedExpTxns, error: projectedExpErr },
   ] = await Promise.all([
     db.from("transactions").select("date, direction, amount").eq("status", "actual"),
     db.from("bcbs_transactions").select("date, description, amount"),
@@ -295,11 +349,21 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
       .select("direction, amount")
       .eq("status", "actual")
       .lte("date", BCBS_RESTRICTED_FUND_ASOF),
+    db
+      .from("transactions")
+      .select("category, direction, amount")
+      .eq("status", "actual")
+      .eq("direction", "income")
+      .gte("date", BCBS_ACCRUAL_WINDOW_START)
+      .lte("date", BCBS_ACCRUAL_WINDOW_END),
+    db.from("transactions").select("amount").eq("status", "projected").eq("direction", "expense"),
   ]);
   if (txErr) throw txErr;
   if (bcbsErr) throw bcbsErr;
   if (accrualWindowErr) throw accrualWindowErr;
   if (asOfErr) throw asOfErr;
+  if (incomeSplitErr) throw incomeSplitErr;
+  if (projectedExpErr) throw projectedExpErr;
 
   const txRows = txns ?? [];
   const bcbsRows = bcbs ?? [];
@@ -340,6 +404,58 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
   }
   const internalAtAsOf = startingBalance + asOfIncome - asOfExpense;
 
+  // Decompose each gap. Both lists are built as (BCBS line − our matching
+  // cash) so they sum to the gap by construction rather than by hand.
+  let internalGrossTuition = 0;
+  let internalFundraising = 0;
+  for (const t of incomeSplitTxns ?? []) {
+    if (TUITION_GROSS_CATEGORIES.includes(t.category)) internalGrossTuition += Number(t.amount);
+    else internalFundraising += Number(t.amount);
+  }
+  const projectedExpenseTotal = (projectedExpTxns ?? []).reduce((s, t) => s + Number(t.amount), 0);
+
+  const bcbsGrantsAndDonations =
+    BCBS_2025.restrictedRevenue +
+    BCBS_2025.collegeAccreditation +
+    BCBS_2026_YTD.restrictedRevenue +
+    BCBS_2026_YTD.hemeraGrant;
+  const bcbsCreditCardFees = BCBS_2025.creditCardFees + BCBS_2026_YTD.creditCardFees;
+  const bcbsOperatingExpense = BCBS_ACCRUAL.expense - BCBS_2026_YTD.scholarships;
+
+  const bridge = {
+    income: [
+      {
+        label: "Course income recognised up front",
+        amount: BCBS_2026_YTD.newCourseIncome - internalGrossTuition,
+        detail: `BCBS booked ${formatUsd(BCBS_2026_YTD.newCourseIncome)} in a single entry when the course ran; we collected ${formatUsd(internalGrossTuition)} in tuition as students paid, net of scholarships.`,
+      },
+      {
+        label: "Grants & donations recognised on BCBS's schedule",
+        amount: bcbsGrantsAndDonations - internalFundraising,
+        detail: `Restricted money counts as revenue when it is spent on its purpose, not when the cheque arrives — e.g. the Hemera grant reached us as ${formatUsd(60000)} of cash in Oct 2025 but appears as ${formatUsd(BCBS_2026_YTD.hemeraGrant)} of 2026 revenue on their books.`,
+      },
+      {
+        label: "Donor-paid credit card fees",
+        amount: bcbsCreditCardFees,
+        detail: "When a donor covers processing fees BCBS records it as income. It never reaches us as a separate line.",
+      },
+    ],
+    expense: [
+      {
+        label: "Scholarships",
+        amount: BCBS_2026_YTD.scholarships,
+        detail:
+          "A scholarship is a discount on tuition, not a payment. BCBS records full tuition as revenue and the discount as an expense; no money leaves an account, so we have no row at all. This will never reconcile, and should not.",
+      },
+      {
+        label: "Everything else",
+        amount: bcbsOperatingExpense - internalAccrualWindowExpense,
+        detail: `BCBS ${formatUsd(bcbsOperatingExpense)} of operating expense vs our ${formatUsd(internalAccrualWindowExpense)} of cash paid. Expenses are recognised when incurred, so anything already owed but unpaid sits here — compare with the ${formatUsd(projectedExpenseTotal)} of obligations we already carry as projected, most of which is for work that has happened (backpay, end-of-semester lump sums, Naropa fees). Likely a subset of that rather than new spending, but only a general ledger export can confirm it.`,
+      },
+    ],
+    projectedExpenseTotal,
+  };
+
   return {
     internal: {
       startingBalance,
@@ -366,6 +482,7 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
       incomeGap: internalAccrualWindowIncome - BCBS_ACCRUAL.income,
       expenseGap: internalAccrualWindowExpense - BCBS_ACCRUAL.expense,
     },
+    bridge,
     fundBalance: {
       asOf: BCBS_RESTRICTED_FUND_ASOF,
       internal: internalAtAsOf,

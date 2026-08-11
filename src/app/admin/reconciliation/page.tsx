@@ -59,11 +59,13 @@ export default async function ReconciliationPage() {
               label="Income Gap (Internal cash − BCBS accrual)"
               value={accrual.incomeGap}
               detail={`${formatCurrency(accrual.internalIncome)} vs ${formatCurrency(accrual.bcbsIncome)}`}
+              lines={summary.bridge.income}
             />
             <GapCard
               label="Expense Gap (Internal cash − BCBS accrual)"
               value={accrual.expenseGap}
               detail={`${formatCurrency(accrual.internalExpense)} vs ${formatCurrency(accrual.bcbsExpense)}`}
+              lines={summary.bridge.expense}
             />
           </div>
 
@@ -187,12 +189,76 @@ function StatRow({
   );
 }
 
-function GapCard({ label, value, detail }: { label: string; value: number; detail?: string }) {
+interface BridgeLine {
+  label: string;
+  amount: number;
+  detail: string;
+}
+
+/**
+ * Hover/focus disclosure. Deliberately CSS-only (group-hover + focus-within)
+ * so this page stays a server component and the explanation is reachable by
+ * keyboard, not just mouse.
+ */
+function GapTooltip({ lines, total }: { lines: BridgeLine[]; total: number }) {
+  return (
+    <span className="group relative inline-block align-middle">
+      <button
+        type="button"
+        aria-label="Explain this gap"
+        className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-neutral-400 text-[10px] font-semibold leading-none text-neutral-500 transition-colors hover:border-neutral-600 hover:text-neutral-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 dark:border-neutral-600 dark:text-neutral-400 dark:hover:border-neutral-400 dark:hover:text-neutral-200"
+      >
+        i
+      </button>
+      <span className="pointer-events-none invisible absolute left-0 top-6 z-20 w-[22rem] max-w-[80vw] rounded-lg border border-neutral-200 bg-white p-3 text-left opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 dark:border-neutral-700 dark:bg-neutral-900">
+        <span className="mb-2 block text-xs font-medium text-neutral-700 dark:text-neutral-200">
+          What makes up this gap
+        </span>
+        {lines.map((line) => (
+          <span key={line.label} className="mb-2 block border-b border-neutral-100 pb-2 last:border-0 dark:border-neutral-800">
+            <span className="flex items-baseline justify-between gap-3">
+              <span className="text-xs font-medium text-neutral-700 dark:text-neutral-200">{line.label}</span>
+              <span className="shrink-0 font-mono text-xs text-neutral-900 dark:text-neutral-50">
+                {formatCurrency(-line.amount)}
+              </span>
+            </span>
+            <span className="mt-0.5 block text-[11px] leading-snug text-neutral-500 dark:text-neutral-400">
+              {line.detail}
+            </span>
+          </span>
+        ))}
+        <span className="flex items-baseline justify-between gap-3 pt-1">
+          <span className="text-xs font-medium text-neutral-700 dark:text-neutral-200">Total</span>
+          <span className="shrink-0 font-mono text-xs font-semibold text-neutral-900 dark:text-neutral-50">
+            {formatCurrency(total)}
+          </span>
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function GapCard({
+  label,
+  value,
+  detail,
+  lines,
+}: {
+  label: string;
+  value: number;
+  detail?: string;
+  lines?: BridgeLine[];
+}) {
   const isZero = Math.abs(value) < 0.5;
   const color = isZero ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400";
+  // The bridge is stated as BCBS-minus-ours; the card shows ours-minus-BCBS.
+  const bridgeTotal = lines ? -lines.reduce((sum, l) => sum + l.amount, 0) : 0;
   return (
     <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-800/50">
-      <p className="text-sm text-neutral-500 dark:text-neutral-400">{label}</p>
+      <p className="flex items-center text-sm text-neutral-500 dark:text-neutral-400">
+        {label}
+        {lines && lines.length > 0 && <GapTooltip lines={lines} total={bridgeTotal} />}
+      </p>
       <p className={`mt-1 text-2xl font-semibold ${color}`}>{formatCurrency(value)}</p>
       {detail && <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">{detail}</p>}
     </div>
