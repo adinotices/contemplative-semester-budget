@@ -10,7 +10,7 @@ const TABS = [
   { href: "/admin/projected", label: "Projected" },
   { href: "/admin/staff-comp", label: "Staff Compensation" },
   { href: "/admin/reconciliation", label: "Reconciliation" },
-  { href: "/admin/program-costs", label: "Program Costs" },
+  { href: "/admin/program-costs", label: "Second CS Program Costs" },
 ];
 
 export function DashboardTabsClient() {

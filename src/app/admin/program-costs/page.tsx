@@ -23,7 +23,9 @@ export default function ProgramCostsPage() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
         <DashboardTabs />
 
-        <h1 className="mb-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Program Costs</h1>
+        <h1 className="mb-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
+          Second CS Program Costs
+        </h1>
         <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-400">
           What the second Contemplative Semester cohort cost, mapped onto the categories from the{" "}
           <em>Projected Income &amp; Expenses by Program Year 2025/2026</em> spreadsheet — a different scheme
