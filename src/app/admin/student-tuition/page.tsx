@@ -34,10 +34,12 @@ export default function StudentTuitionPage() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
         <DashboardTabs />
 
-        <h1 className="mb-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Student Tuition</h1>
+        <h1 className="mb-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
+          Second CS Student Scholarships
+        </h1>
         <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-400">
-          Per-student tuition, scholarships and balances for the {totals.studentCount}-student CS 2026 cohort,
-          from the accepted-student tracker.
+          Per-student scholarships, tuition, deposits and balances for the {totals.studentCount}-student CS 2026
+          cohort, from the accepted-student tracker.
         </p>
 
         <div className="mb-6 rounded-xl border border-neutral-300 bg-neutral-100 px-5 py-4 dark:border-neutral-700 dark:bg-neutral-800/60">
