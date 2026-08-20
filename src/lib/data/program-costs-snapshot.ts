@@ -253,8 +253,14 @@ export const TUITION_ROWS: SnapshotRow[] = [
   {
     category: "Tuition cash actually collected",
     budget: null,
-    actual2025: 19000.0,
-    actual2026: 209840.0,
+    // Verified against the ledger 2026-08-19:
+    //   select extract(year from date), sum(amount) from transactions
+    //   where direction='income' and category='Tuition' and status='actual'
+    // 2025 is Oct 14,160 + Nov 26,720 + Dec 73,920 — deposits landing as the
+    // cohort confirmed. An earlier version split this 19,000 / 209,840, which
+    // had the right total and the wrong years.
+    actual2025: 114800.0,
+    actual2026: 114040.0,
     totalActual: LEDGER_TUITION_CASH,
     stillProjected: 0.0,
     actualPlusProjected: LEDGER_TUITION_CASH,
