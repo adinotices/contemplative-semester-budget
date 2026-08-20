@@ -386,6 +386,36 @@ Two steps that are outside Vercel and were left to the user:
 1. **DNS.** `contemplativesemester.org` runs on Google Cloud DNS (`ns-cloud-a1..a4.googledomains.com`). Needs a CNAME `budget` → `dba3f7418688f39c.vercel-dns-017.com.` (Vercel's rank-1 recommendation; generic `cname.vercel-dns.com.` also works). Until then `/v6/domains/.../config` reports `misconfigured: true`.
 2. **Google OAuth.** Client `670852086060-rl77077m0kqij6jeiraf295isn4hmavl…` needs `https://budget.contemplativesemester.org/api/auth/callback/google` added to Authorized redirect URIs and the origin added to Authorized JavaScript origins. **Sign-in on the new domain fails with redirect_uri_mismatch until this is done.** Keep the existing `.vercel.app` entries.
 
+## 2p. BCBS account 4355 export; rollup reconciliation (2026-08-19)
+
+Melissa sent `Barre Center for Buddhist Studies, Inc Account Transactions.xlsx` — **account `4355 - Contemplative Semester Expense` only**, 243 rows, 2025-01-04 → 2026-07-31, total **523,285.44**. Not the full GL: no 3600 course income, no 4301 scholarships, no Hemera/restricted revenue, no credit-card fees. It refreshes the expense side and nothing else.
+
+Versus the constants in `dashboard.ts` (519,741.58) it is 3,543.86 higher, fully explained: **1,543.86** Shea Riester 2025-01-04 (predates the old GL window opening 2025-01-23) and **2,000.00** Aditya Aswani dated 2026-07-31 (postdates the 2026-07-22 P&L; already in our ledger as July Compensation dated 2026-08-09 — same money, different date).
+
+**Jan-2025 rows were NOT inserted into `bcbs_transactions`, deliberately.** User asked for them; all four already exist there under cash account `1072 - Bill.com Money Out Clearing`, on payment dates rather than accrual dates — Shea 1,543.86 (accrual 01-04 / cash 01-07), Morey 720.00 and 29.30 (01-30 / 01-31), Shapouri 1,250.00 (01-31 / 02-04). 4355 is the expense leg of the same double entry, so inserting would have double-counted. **Never add 4355 rows to `bcbs_transactions` — that table holds cash accounts 1072/1100 only.**
+
+### Rollup reconciliation
+
+Row-level amount matching is the wrong tool here: BCBS is bill-level (243 rows), ours is receipt-level (553). One 10,694.86 Roche payment is a dozen receipts on our side. Matching by amount flags 124k as "missing", which is an artifact — do not report that number.
+
+Two corrections are needed before any comparison is meaningful:
+1. **Our `payee` column records who *submitted* an expense, not who was paid.** Kyan Aldrich carries the 13,570 Potash Hill down payment and the 15,000 BCBS fiscal-sponsorship fee. Recover the real counterparty from `description`.
+2. **Exclude our `Refund` category (7,000).** BCBS books refunds against income, not 4355.
+
+Like-for-like: BCBS 523,285.44 vs ours 480,821.02 → **true gap 42,464.42**. With aliases applied (Fresh White = Lev Moses, Rooted Liberation = Sarah Cole, Cara Lai Dharma = Cara Lai, Roz Driscoll = Roz, Edmond/Edmonds, Neacy/Luc, Cornerstone = David Dennis), **26 counterparties reconcile to the cent, 155,449.43** — including Aditya's 15 BCBS bills against our 78 receipts, and Potash Hill at exactly 115,700.00 once the mis-attributed 13,570 is moved off Kyan.
+
+Residual decomposes exactly:
+
+| Amount | Theme |
+|---|---|
+| 15,747.18 | **Rupert Marques** — BCBS paid 16,937.00 over 4 payments; our ledger has 1,189.82 |
+| 14,529.58 | **Insurance/compliance** — Marsh & McLennan 11,361.58, Cornerstone 1,625.00, AmTrust 1,543.00 |
+| 7,093.87 | **Vendors absent from our ledger** — Minard 1,500, Shapouri 1,250, USN College Advisor 1,150, J.N. Frank 769.57, Morey 749.30, GoAbroad 500, Corlette 475, K. Davis 400, Youngblood 300 |
+| 5,093.79 | **Reimbursement cut-off/rounding, net** — Chai +3,048.47, Roche +2,107.92, Riester +786.62, less Beresford/WISE, Aldrich, Neacy, Potash and others |
+| **42,464.42** | **TOTAL** |
+
+Rupert Marques and the insurance block are the two real questions for Melissa — together 30,276.76 of BCBS-booked CS expense with little or no counterpart in our books.
+
 ## 2. Infrastructure — provisioned so far
 
 **Supabase** (via Supabase MCP connector):
