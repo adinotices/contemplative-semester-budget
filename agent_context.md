@@ -416,6 +416,29 @@ Residual decomposes exactly:
 
 Rupert Marques and the insurance block are the two real questions for Melissa — together 30,276.76 of BCBS-booked CS expense with little or no counterpart in our books.
 
+## 2q. Erin's Salesforce gift reports imported to `bcbs_gift_transactions` (2026-08-19)
+
+Erin Piermarini (erinp@buddhistinquiry.org, BCBS Salesforce/IT admin) sends a scheduled monthly **"Report results (Contemplative Semester GTs - YTD)"** email, and sent a one-off full export on 2026-03-09 ("Reports per request Jan 1 2025-Dec 31 2026"). GT = gift transaction; the report covers **donations *and* class-registration/tuition payments**, filtered `Campaign Name contains Contemplative Semester`, `Status equals Paid`.
+
+Two source shapes: the 3/9 email carries **xlsx + CSV attachments** (transaction detail, no Salesforce ids); the monthly emails carry **the same detail inline in the HTML body**, with a Salesforce link per row — so ids are only recoverable from bodies. The scheduled report filters `Transaction Completion Date: Current CY`, so monthly emails only ever cover the current calendar year; **the 3/9 export is the only source for 2025**.
+
+Imported into new table `bcbs_gift_transactions` (migration `0007`): **141 rows, 2025-01-23 → 2026-05-20**. 2025: 110 rows / 421,332.07. 2026: 31 rows / 193,882.76.
+
+**Do NOT put these in `bcbs_transactions`.** Two independent reasons: (a) that table holds BCBS's cash accounts 1072/1100, and these gifts are the individual payments batched into its 1100 `Receive Money — Various` deposit rows — storing both double-counts income; (b) `getReconciliationSummary()` calls a row income only if its description contains "Receive Money", so every one of these — named `<Donor> - Donation - 250` — would have been summed as BCBS **expense**, adding ~605k of phantom expense to the Reconciliation page.
+
+**Idempotency key is `salesforce_id`, not a natural key.** The first cut used `unique (name, completion_date, original_amount)`; the 7/31 report contains two genuinely distinct Salesforce records for Malcom Wilson-Ahlstrom, both "CS Payment", both 2026-03-12, both 2,460.00 — the natural key silently merges them and loses 2,460.00. Constraint replaced with a partial unique index on `salesforce_id`; rows sourced from the CSV attachment have it null.
+
+Verification — 2026 ties to Erin's 7/31 report on **all four totals**: 31 records, current 193,882.76, original 195,882.76, donor cover 1,267.76, tax receiptable 53,842.76.
+
+Useful correspondences discovered:
+- **`donor_cover_amount` is BCBS's credit-card-fee line.** 2025 sums to 809.07 and 2026 to 1,267.76 — exactly `BCBS_2025.creditCardFees` and `BCBS_2026_YTD.creditCardFees` in `dashboard.ts`.
+- Column meanings (Erin, 2025-12-23): Original = amount as transacted; Current = Original net of refund; Tax Receiptable = deductible portion (0 for tuition); Donor Cover = processing fee the donor absorbed.
+- Only one row has Current ≠ Original: Oliver Coelho 1/23/2026, 4,000 → 2,000 — the 2k refund the student tracker flags.
+- Erin's 2025 total 421,332.07 vs our ledger's 2025 income 424,523.00 — **3,190.93 apart**, unreconciled.
+- Salesforce holds **two donor records for Amiya Fornés-Sicam** (001Qo00001HIgzQIAT and 001Qo00001V6j3NIAR), one accented and one not.
+
+**Not imported / open:** phone and mailing address columns were deliberately dropped (not needed for finance, and they are donor PII). The 3/9 "Contemplative Semester Campaigns" attachment is campaign-level aggregate, not transaction detail — not imported. The 2025-12-22 2025-donations report is a subset of the 3/9 export — not imported. Nothing in the dashboard reads this table yet.
+
 ## 2. Infrastructure — provisioned so far
 
 **Supabase** (via Supabase MCP connector):
