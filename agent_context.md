@@ -464,7 +464,15 @@ Three campaigns, all under parent "Restricted": *Contemplative Semester* 1,071,8
 
 **The 2026 Hemera grant of 50,311 is absent from this report too.** Salesforce has Hemera only at 2024-05-09 (75,000) and 2025-10-09 (60,000). Two independent Salesforce exports now miss it, so it is genuinely not a Salesforce gift — it reached checking account 1100 on 2026-03-30 by another route. **The 50,311 income gap stands and cannot be closed from Salesforce data; it needs Melissa.**
 
-Migration **`0008`** adds `parent_campaign`, `campaign_name`, `transaction_type`, `payment_method`, `registration_amount` to `bcbs_gift_transactions` — **applied to the live DB**. The **252-row data load is NOT done**: it needs a Supabase PAT so the payload can go through `curl --data @file` as in §2q. Inlining ~38KB of SQL through the MCP `execute_sql` call would risk a silent transcription error in financial data, which is not worth it. Once loaded, the table stops being 2025-26 only — callers wanting the current cohort must filter by date. Parsed source data is cached at `scratchpad/campaigns.json`.
+Migration **`0008`** adds `parent_campaign`, `campaign_name`, `transaction_type`, `payment_method`, `registration_amount`, and **the load is DONE** — `bcbs_gift_transactions` now holds **252 rows totalling 1,146,116.28**, matching the export's own total. 111 rows inserted for 2023-2024; all 141 existing 2025-26 rows backfilled with campaign metadata, their `account_name`/`email` from Erin's report left untouched.
+
+Done through the **Data API with a service-role key** (`sb_secret_...`) posting JSON, not SQL — no statement text to mis-transcribe. Note this key type cannot run DDL, so the columns had to exist first.
+
+For the 111 campaign-sourced rows: `account_name` is `''` and `email` null (the export has no donor-identity column — not guessed from the transaction name), and `original_amount` mirrors `current_amount` (no Original Amount column, so a refund would be invisible on those rows).
+
+Verified post-load: every row agrees with the export on all ten shared fields. The single apparent mismatch is the export's **mojibake** "Amiya Forn�s-Sicam"; the DB holds the correct "Amiya Fornés-Sicam" from Erin's report, so the DB is the more accurate of the two.
+
+**The table is no longer 2025-26 only** — anything reading it for the current cohort must filter `completion_date >= '2025-01-01'`. Parsed source cached at `scratchpad/campaigns.json`.
 
 **Container warning:** this session's container came up on branch `claude/build-architecture-md-ua0g60`, which is the 2-commit scaffold, not the 50-commit `main` where all real work lives. Check `git branch --show-current` before committing.
 
