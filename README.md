@@ -15,6 +15,7 @@ Resend (email) · Twilio WhatsApp Business API · Claude API (OCR + chat).
 npm install
 cp .env.example .env.local   # fill in the values below
 npm run dev
+npm test                     # node:test over src/**/*.test.ts (no extra deps)
 ```
 
 ## Deployment checklist (§9 of the architecture doc)
@@ -53,7 +54,7 @@ npm run dev
 |---|---|---|
 | 1 | Schema + `/` dashboard (read-only) | Built |
 | 2 | `/reimburse` form + weekly digest + `/approve/[token]` + accountant email | Built |
-| 3 | `/chat` chatbot, role-scoped per §7 | Built |
+| 3 | `/chat` chatbot, role-scoped per §7 | Built — model picker (Opus 5 / Sonnet 5 / Haiku 4.5), conversations persisted per user, global API spend cap (`org_settings.anthropic_spend_cap_usd`), see agent_context §2s–2t |
 | 4 | WhatsApp bot (§8), feeding the same `reimbursement_requests` table | Built |
 | 5 | Reconciliation admin tool | Scaffolded — manual matching UI is in place; bulk-import parsing for BCBS exports is stubbed pending the actual export file format (see `/api/email/inbound`) |
 

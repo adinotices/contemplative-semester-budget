@@ -522,6 +522,46 @@ exactly right (checked against the generator). The real `/chat` UI needs a
 Google sign-in, so the end-to-end click-through is Aditya's: `/chat` on the
 staging preview, then promote `staging` → `main`.
 
+## 2t. /chat: model picker, persistent conversations, global $5 API spend cap (2026-10-13)
+
+Aditya asked for three things after §2s, all built on `staging` and the Vercel
+preview; design in `docs/superpowers/specs/2026-10-13-chat-model-picker-and-history-design.md`.
+
+- **Model picker.** `src/lib/chat/models.ts` is the allowlist and the picker's
+  source: Opus 5 (default), Sonnet 5, Haiku 4.5, each with a cost hint. The
+  model is stored on the conversation and on every assistant message. Opus and
+  Sonnet think adaptively (parameter omitted); Haiku gets
+  `thinking: { type: "enabled", budget_tokens: 8000 }`. A user's default for a
+  new chat is the model of their most recent conversation.
+- **Persistent conversations.** Migration `0009_chat_history.sql` (APPLIED via
+  the Supabase connector, verified: tables + 3 admin-only RLS policies, cap row
+  present): `chat_conversations`, `chat_messages`, `api_spend_events`, plus
+  `org_settings('anthropic_spend_cap_usd', 5.00)`. `src/lib/data/chat-history.ts`
+  keys every read/write by the session email — that is the ownership gate;
+  conversations are private to their owner (admins do not see others' chats).
+  `/api/chat` now takes `{ conversationId?, model, message }`, loads the last 20
+  turns server-side, stores the question, answers, stores the answer with usage,
+  and rolls the question (and a just-created conversation) back if the model
+  call fails. `GET /api/chat/conversations`, `GET|DELETE /api/chat/conversations/[id]`.
+  The page loads the list (and a `?c=<id>` deep-linked thread) on the server.
+- **Global spend cap.** `src/lib/data/spend.ts`: every Anthropic call the app
+  makes (chat, WhatsApp bot, receipt OCR) inserts an `api_spend_events` row
+  priced at list rates (`src/lib/chat/pricing.ts`: input, cache write ×1.25,
+  cache read ×0.1, output). `assertBudget()` runs before each call and refuses
+  with HTTP 402 (chat) or a "paused, use the web form" reply (bot) once
+  `sum(cost_usd) >= org_settings.anthropic_spend_cap_usd`. The chat composer
+  shows "API spend $x of $5.00". **Raise the cap without a deploy:**
+  `update org_settings set value_numeric = 20 where key = 'anthropic_spend_cap_usd';`
+  It is cumulative, not monthly, and only counts calls this app records; a
+  workspace spend limit in the Anthropic Console is the hard backstop.
+  $5 is roughly 11 first questions on Opus, or ~50 cached follow-ups.
+- **WhatsApp bot** (`src/lib/whatsapp/bot.ts`): the two Sonnet 5 calls now pass
+  `thinking: { type: "disabled" }` (closes the §2s exposure at 512/100
+  max_tokens) and record spend.
+- Tests: `npm test` → 13 passing (`models`, `pricing`, `reply`). ESLint + tsc clean.
+  Still not exercised end to end from this sandbox (Google sign-in); Aditya's
+  click-through on the staging preview is the acceptance test.
+
 ## 2. Infrastructure — provisioned so far
 
 **Supabase** (via Supabase MCP connector):
@@ -681,9 +721,7 @@ Next expected: **August compensation**, requestable from ~2026-09-01, placeholde
 
 ## 4. Next steps, roughly in order
 
-0. Give the WhatsApp bot the same treatment as §2s: `max_tokens` 512/100 with
-   adaptive thinking on Sonnet 5 can return no text / no tool call. Either
-   raise the budget or pass `thinking: { type: "disabled" }` on those two calls.
+0. ~~WhatsApp bot thinking exposure~~ — done in §2t.
 
 1. **Twilio WhatsApp**: provision a WhatsApp Business API number (the Twilio
    MCP connector in-session is authless/docs-only — it can look up API

@@ -1,39 +1,118 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
-import { anthropic, BUDGET_CHAT_MODEL } from "@/lib/anthropic";
+import { anthropic } from "@/lib/anthropic";
 import { buildChatContext } from "@/lib/data/chat-context";
-import { textFromCompletion, toApiMessages } from "@/lib/chat/reply";
+import { isChatModel, thinkingFor } from "@/lib/chat/models";
+import { textFromCompletion, titleFromQuestion, toApiMessages } from "@/lib/chat/reply";
+import {
+  appendMessage,
+  createConversation,
+  deleteConversation,
+  deleteMessage,
+  getConversation,
+  getMessages,
+  setConversationModel,
+} from "@/lib/data/chat-history";
+import { assertBudget, BudgetExceededError, recordSpend } from "@/lib/data/spend";
 
 // An Opus answer over the full ledger can take 20-40 s; Vercel's default
 // function budget is shorter than that on some plans.
 export const maxDuration = 60;
 
+const MAX_MESSAGE_CHARS = 4000;
+
+/**
+ * Appends one user message to a conversation (creating it on the first
+ * message) and answers it. History comes from the database, never from the
+ * browser. Body: { conversationId?, model, message }.
+ */
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user) {
+  const email = session?.user?.email;
+  if (!session?.user || !email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: unknown;
+  let body: { conversationId?: unknown; model?: unknown; message?: unknown };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-  const messages = toApiMessages((body as { messages?: unknown } | null)?.messages);
-  if (messages.length === 0) {
-    return NextResponse.json({ error: "Missing messages" }, { status: 400 });
+  const message = typeof body.message === "string" ? body.message.trim() : "";
+  if (!message) return NextResponse.json({ error: "Missing message" }, { status: 400 });
+  if (message.length > MAX_MESSAGE_CHARS) {
+    return NextResponse.json({ error: `Message is too long (max ${MAX_MESSAGE_CHARS} characters)` }, { status: 400 });
+  }
+  if (!isChatModel(body.model)) return NextResponse.json({ error: "Unknown model" }, { status: 400 });
+  const model = body.model;
+  if (body.conversationId !== undefined && typeof body.conversationId !== "string") {
+    return NextResponse.json({ error: "Invalid conversationId" }, { status: 400 });
+  }
+
+  // Refuse before doing any work once the global cap is reached.
+  try {
+    await assertBudget();
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      return NextResponse.json(
+        { error: `The app's API budget is used up ($${err.totalUsd.toFixed(2)} of $${err.capUsd.toFixed(2)}). Ask Aditya to raise it.` },
+        { status: 402 },
+      );
+    }
+    console.error("/api/chat: budget check failed", err);
+    return NextResponse.json({ error: "Couldn't check the API budget. Try again in a moment." }, { status: 502 });
   }
 
   const role = session.user.role ?? "viewer";
 
-  let context: string;
+  // Resolve or create the conversation, then store the question. If the model
+  // call fails below, both are rolled back so the UI and the DB agree.
+  let conversationId: string;
+  let createdNow = false;
+  let userMessageId: string;
   try {
-    context = await buildChatContext(role);
+    if (body.conversationId) {
+      const existing = await getConversation(email, body.conversationId);
+      if (!existing) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+      conversationId = existing.id;
+      if (existing.model !== model) await setConversationModel(conversationId, model);
+    } else {
+      conversationId = (await createConversation(email, titleFromQuestion(message), model)).id;
+      createdNow = true;
+    }
+    userMessageId = await appendMessage(conversationId, { role: "user", content: message });
+  } catch (err) {
+    console.error("/api/chat: failed to store the question", err);
+    return NextResponse.json({ error: "Couldn't save the conversation. Try again in a moment." }, { status: 502 });
+  }
+
+  async function rollback() {
+    try {
+      if (createdNow) await deleteConversation(email!, conversationId);
+      else await deleteMessage(userMessageId);
+    } catch (err) {
+      console.error("/api/chat: rollback failed", err);
+    }
+  }
+
+  let context: string;
+  let history: Anthropic.MessageParam[];
+  try {
+    [context, history] = await Promise.all([
+      buildChatContext(role),
+      getMessages(conversationId).then(toApiMessages),
+    ]);
   } catch (err) {
     console.error("/api/chat: failed to load budget context", err);
+    await rollback();
     return NextResponse.json({ error: "Couldn't load the budget data. Try again in a moment." }, { status: 502 });
+  }
+  if (history.length === 0) {
+    // Can't happen (we just stored a user turn), but never send an empty list.
+    await rollback();
+    return NextResponse.json({ error: "Nothing to send" }, { status: 400 });
   }
 
   // Everything before the data is stable per role; the data is stable until the
@@ -53,15 +132,17 @@ export async function POST(req: NextRequest) {
   ].join("\n");
 
   try {
+    const thinking = thinkingFor(model);
     const completion = await anthropic().messages.create({
-      model: BUDGET_CHAT_MODEL,
-      // Adaptive thinking is on by default for this model and draws from the
-      // same budget as the answer. 1024 here was exhausted by thinking alone,
-      // which returned an empty reply for every question.
+      model,
+      // Thinking and the answer share this budget. 1024 here was exhausted by
+      // thinking alone, which returned an empty reply for every question.
       max_tokens: 16000,
+      ...(thinking ? { thinking } : {}),
       system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
-      messages,
+      messages: history,
     });
+    await recordSpend("chat", model, completion.usage, email);
 
     const text = textFromCompletion(completion);
     if (!text) {
@@ -70,13 +151,16 @@ export async function POST(req: NextRequest) {
         blocks: completion.content.map((b) => b.type),
         usage: completion.usage,
       });
+      await rollback();
       return NextResponse.json(
         { error: "The assistant ran out of room before answering. Try a narrower question." },
         { status: 502 },
       );
     }
-    return NextResponse.json({ reply: text });
+    await appendMessage(conversationId, { role: "assistant", content: text, model, usage: completion.usage });
+    return NextResponse.json({ reply: text, conversationId, model });
   } catch (err) {
+    await rollback();
     if (err instanceof Anthropic.AuthenticationError) {
       console.error("/api/chat: Anthropic rejected the API key", err.message);
       return NextResponse.json({ error: "The assistant's API key was rejected. Tell Aditya." }, { status: 502 });

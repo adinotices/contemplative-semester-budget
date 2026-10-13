@@ -1,4 +1,5 @@
 import { anthropic, CHAT_MODEL } from "@/lib/anthropic";
+import { assertBudget, BudgetExceededError, recordSpend } from "@/lib/data/spend";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { downloadTwilioMedia } from "@/lib/twilio";
 
@@ -105,13 +106,38 @@ export async function handleIncomingMessage(params: {
 
   const contextNote = `Known so far: ${JSON.stringify(state.collected)}`;
 
+  // Global API spend cap (org_settings.anthropic_spend_cap_usd): once it is
+  // reached the bot stops calling the model and points people at the web form.
+  try {
+    await assertBudget();
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      // Keep anything collected this turn (e.g. a receipt URL) but not the
+      // unanswered user turn, so nothing is replayed when the cap is raised.
+      state.messages.pop();
+      await db.from("bot_sessions").upsert(
+        { phone_number: params.phoneNumber, state_json: state, last_message_at: new Date().toISOString() },
+        { onConflict: "phone_number" },
+      );
+      return {
+        reply: `The reimbursement assistant is paused for now (its API budget is used up). Please submit at ${process.env.NEXT_PUBLIC_APP_URL ?? "the budget site"}/reimburse instead.`,
+        submitted: false,
+      };
+    }
+    throw err;
+  }
+
   const completion = await anthropic().messages.create({
     model: CHAT_MODEL,
     max_tokens: 512,
+    // Sonnet 5 thinks adaptively by default; with a 512-token budget that can
+    // leave no room for the reply or the tool call (see agent_context §2s).
+    thinking: { type: "disabled" },
     system: `${SYSTEM_PROMPT}\n\n${contextNote}`,
     tools: [SUBMIT_TOOL],
     messages: state.messages.map((m) => ({ role: m.role, content: m.content })),
   });
+  await recordSpend("whatsapp", CHAT_MODEL, completion.usage);
 
   const toolUse = completion.content.find((b) => b.type === "tool_use");
   const textBlocks = completion.content.filter((b) => b.type === "text").map((b) => b.text);
@@ -168,9 +194,11 @@ export async function handleIncomingMessage(params: {
 async function extractReceiptAmount(buffer: Buffer, contentType: string): Promise<number | null> {
   if (!contentType.startsWith("image/")) return null;
   try {
+    await assertBudget();
     const completion = await anthropic().messages.create({
       model: CHAT_MODEL,
       max_tokens: 100,
+      thinking: { type: "disabled" },
       messages: [
         {
           role: "user",
@@ -191,6 +219,7 @@ async function extractReceiptAmount(buffer: Buffer, contentType: string): Promis
         },
       ],
     });
+    await recordSpend("ocr", CHAT_MODEL, completion.usage);
     const text = completion.content.find((b) => b.type === "text")?.text?.trim();
     if (!text || text.toLowerCase() === "unknown") return null;
     const parsed = Number(text.replace(/[^0-9.]/g, ""));
