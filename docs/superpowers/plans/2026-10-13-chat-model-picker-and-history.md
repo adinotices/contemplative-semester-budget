@@ -45,3 +45,10 @@
 
 ### Task 7: Docs
 - [ ] agent_context.md §2t: what shipped, how to apply the migration if the connector refused, what Aditya should click. Commit, push.
+
+### Task 8: Global API spend cap (Aditya, mid-build: "set a global $5 budget on api spend from this app")
+**Produces:** `src/lib/chat/pricing.ts` — `costUsd(model, usage)` from list prices (input, cache write ×1.25, cache read ×0.1, output); `src/lib/data/spend.ts` — `recordSpend(source, model, usage)`, `spendSummary(): { totalUsd, capUsd }`, `BudgetExceededError`, `assertBudget()`.
+- [ ] Migration 0009 also creates `api_spend_events(id, source, model, input_tokens, cache_write_tokens, cache_read_tokens, output_tokens, cost_usd, created_at)` and inserts `org_settings('anthropic_spend_cap_usd', 5.00)`.
+- [ ] Tests for `costUsd` with the measured Opus usage (55,256 cache write + 2,675 output ≈ $0.412).
+- [ ] `/api/chat` calls `assertBudget()` before the model and `recordSpend("chat", …)` after; the WhatsApp bot's two calls record as `"whatsapp"` / `"ocr"` and skip the model when the cap is hit (bot replies that the assistant is paused).
+- [ ] Chat UI shows "API spend $x.xx of $5.00" under the composer; 402 from the route renders as the inline notice.

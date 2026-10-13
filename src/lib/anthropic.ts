@@ -12,11 +12,3 @@ export function anthropic(): Anthropic {
 
 /** WhatsApp reimbursement bot + receipt OCR. */
 export const CHAT_MODEL = "claude-sonnet-5";
-
-/**
- * /chat budget assistant. Opus by Aditya's call (2026-10-13): answers are
- * read as financial facts, so accuracy over an 80k-token ledger beats the
- * per-message saving of a smaller model. The ledger is prompt-cached, so the
- * marginal cost of a follow-up question is small either way.
- */
-export const BUDGET_CHAT_MODEL = "claude-opus-5";

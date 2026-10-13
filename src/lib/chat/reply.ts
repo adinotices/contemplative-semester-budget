@@ -44,3 +44,13 @@ export function textFromCompletion(completion: Pick<Anthropic.Message, "content"
     .trim();
   return text.length > 0 ? text : null;
 }
+
+const TITLE_MAX = 60;
+
+/** Conversation title from its first question: one line, at most 60 chars. */
+export function titleFromQuestion(question: string): string {
+  const oneLine = question.replace(/\s+/g, " ").trim();
+  if (!oneLine) return "New chat";
+  if (oneLine.length <= TITLE_MAX) return oneLine;
+  return oneLine.slice(0, TITLE_MAX - 1).trimEnd() + "…";
+}
