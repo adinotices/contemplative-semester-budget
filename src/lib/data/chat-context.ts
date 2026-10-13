@@ -8,6 +8,8 @@ import { supabaseAdmin } from "@/lib/supabase/server";
  * supabase/migrations/0001_init.sql — even though this path uses the
  * service role, it must not fetch more than the caller's role allows.
  */
+// Serialized compact (no indentation): the same rows pretty-printed cost ~30%
+// more input tokens, and this string is re-sent (or cache-read) on every turn.
 export async function buildChatContext(role: string): Promise<string> {
   const db = supabaseAdmin();
   const isAdmin = role === "admin";
@@ -27,8 +29,6 @@ export async function buildChatContext(role: string): Promise<string> {
         budget_categories: categories ?? [],
         category_summary: summary ?? [],
       },
-      null,
-      2,
     );
   }
 

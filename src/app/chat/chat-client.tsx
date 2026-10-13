@@ -39,8 +39,27 @@ export function ChatClient({ isAdmin }: { isAdmin: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next }),
       });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "Something went wrong");
+      // Platform errors (timeouts, 5xx from the edge) come back as text, not
+      // JSON, so don't assume a JSON body before checking.
+      const raw = await res.text();
+      let body: { reply?: unknown; error?: unknown } = {};
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        body = {};
+      }
+      if (!res.ok) {
+        throw new Error(
+          typeof body.error === "string"
+            ? body.error
+            : res.status === 504
+              ? "The assistant took too long to answer. Try a narrower question."
+              : `Something went wrong (HTTP ${res.status})`,
+        );
+      }
+      if (typeof body.reply !== "string" || body.reply.trim() === "") {
+        throw new Error("The assistant returned an empty answer. Try again.");
+      }
       setMessages([...next, { role: "assistant", content: body.reply }]);
     } catch (err) {
       setMessages([
