@@ -476,6 +476,52 @@ Verified post-load: every row agrees with the export on all ten shared fields. T
 
 **Container warning:** this session's container came up on branch `claude/build-architecture-md-ua0g60`, which is the 2-commit scaffold, not the 50-commit `main` where all real work lives. Check `git branch --show-current` before committing.
 
+## 2s. /chat answered every question with an empty bubble; fixed, now Opus 5 + cached ledger (2026-10-13)
+
+Aditya's Notion list had "fix CS Dashboard chat feature". Root cause, reproduced
+outside Next with a production-sized admin context: Sonnet 5 (and Opus 5) run
+adaptive thinking when the `thinking` parameter is omitted, and `/api/chat`
+capped `max_tokens` at 1,024. Over the ~85k-token ledger the model spent the
+entire budget thinking, stopped with `stop_reason: max_tokens` and only a
+`thinking` block, and the route returned `{reply: ""}` — so the UI rendered a
+blank assistant bubble for every question. (The UI's leading assistant greeting
+in the message list is accepted by the API and was not a factor, but it is now
+dropped before the request anyway.)
+
+Changes (commit `b03b7a4`, branch `staging`, built on the Vercel preview):
+- `/chat` uses `BUDGET_CHAT_MODEL = "claude-opus-5"` — Aditya's call, accuracy
+  over cost for figures people will quote. `CHAT_MODEL` (Sonnet 5) is now only
+  the WhatsApp bot's model. **The bot has the same exposure** (`max_tokens` 512
+  and 100 with thinking on by default); not changed yet, see §4.
+- `max_tokens` 16,000. Thinking and answer share it; measured Opus turns use
+  ~2.3-2.6k thinking tokens and 22-26 s wall time, so the route exports
+  `maxDuration = 60`.
+- The system prompt (role text + ledger JSON) is one `cache_control` block.
+  First turn in a session writes ~55k tokens to cache; follow-ups within five
+  minutes read it at 10% price. Measured: turn 2 `cache_read_input_tokens`
+  55,256, `input_tokens` 109.
+- `buildChatContext()` no longer pretty-prints: same rows, 55k vs 73k tokens.
+- Route returns JSON errors with real status codes (bad body 400, context
+  load 502, Anthropic auth 502 / rate limit 503 / other API 502, unexpected 500,
+  and 502 when the completion has no text). Client reads the body as text
+  first (504s arrive as plain text), shows the server's message, and treats an
+  empty reply as an error instead of rendering nothing.
+- Message shaping + reply extraction live in `src/lib/chat/reply.ts`; `npm test`
+  runs `node --test` over `src/**/*.test.ts` (Node 24 strips types natively;
+  test files are excluded from the Next tsconfig).
+
+Per-question cost at ~60k context tokens (Anthropic list prices, 2026-10):
+Opus 5 ≈ $0.44 for the first question of a session, ≈ $0.09 per follow-up
+(cache hit); Sonnet 5 ≈ $0.18 / $0.04; Haiku 4.5 ≈ $0.05 / $0.01. Before this
+change every Sonnet question cost ≈ $0.15 (no caching) and returned nothing.
+
+How this was tested: a probe script calling the Messages API with a synthetic
+721-row ledger of the same shape — the old request shape reproduced the blank
+reply on both models; the new shape answered two sum-over-rows questions
+exactly right (checked against the generator). The real `/chat` UI needs a
+Google sign-in, so the end-to-end click-through is Aditya's: `/chat` on the
+staging preview, then promote `staging` → `main`.
+
 ## 2. Infrastructure — provisioned so far
 
 **Supabase** (via Supabase MCP connector):
@@ -634,6 +680,10 @@ update staff_compensation set amount = amount - <converted>  where staff_name='A
 Next expected: **August compensation**, requestable from ~2026-09-01, placeholder already sits at `2026-08-01`. September follows at `2026-09-01`.
 
 ## 4. Next steps, roughly in order
+
+0. Give the WhatsApp bot the same treatment as §2s: `max_tokens` 512/100 with
+   adaptive thinking on Sonnet 5 can return no text / no tool call. Either
+   raise the budget or pass `thinking: { type: "disabled" }` on those two calls.
 
 1. **Twilio WhatsApp**: provision a WhatsApp Business API number (the Twilio
    MCP connector in-session is authless/docs-only — it can look up API
