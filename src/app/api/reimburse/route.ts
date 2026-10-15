@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { RECEIPT_BUCKET } from "@/lib/receipts";
 
-const RECEIPT_BUCKET = "receipts";
 const MAX_RECEIPT_BYTES = 10 * 1024 * 1024; // 10MB
 
 const fieldsSchema = z.object({
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     if (receipt.size > MAX_RECEIPT_BYTES) {
       return NextResponse.json({ error: "Receipt file is too large (max 10MB)" }, { status: 400 });
     }
-    const ext = receipt.name.split(".").pop() || "bin";
+    const ext = (receipt.name.includes(".") ? receipt.name.split(".").pop() : "")?.replace(/[^a-z0-9]/gi, "").slice(0, 8) || "bin";
     const path = `web/${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await db.storage
       .from(RECEIPT_BUCKET)
@@ -43,8 +43,8 @@ export async function POST(req: NextRequest) {
     if (uploadError) {
       return NextResponse.json({ error: "Failed to upload receipt" }, { status: 500 });
     }
-    const { data: publicUrl } = db.storage.from(RECEIPT_BUCKET).getPublicUrl(path);
-    receiptUrl = publicUrl.publicUrl;
+    // The bucket is private: store the object path, not a URL (see lib/receipts).
+    receiptUrl = path;
   }
 
   const { name, description, amount } = parsed.data;

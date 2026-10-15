@@ -2,8 +2,8 @@ import { anthropic, CHAT_MODEL } from "@/lib/anthropic";
 import { assertBudget, BudgetExceededError, recordSpend } from "@/lib/data/spend";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { downloadTwilioMedia } from "@/lib/twilio";
+import { RECEIPT_BUCKET } from "@/lib/receipts";
 
-const RECEIPT_BUCKET = "receipts";
 const MAX_HISTORY = 20;
 
 export interface BotMessage {
@@ -86,8 +86,8 @@ export async function handleIncomingMessage(params: {
       const { buffer, contentType } = await downloadTwilioMedia(params.mediaUrl);
       const path = `whatsapp/${params.phoneNumber.replace(/[^\d]/g, "")}/${crypto.randomUUID()}`;
       await db.storage.from(RECEIPT_BUCKET).upload(path, buffer, { contentType });
-      const { data: publicUrl } = db.storage.from(RECEIPT_BUCKET).getPublicUrl(path);
-      state.collected.receiptUrl = publicUrl.publicUrl;
+      // Private bucket: keep the object path, not a URL (see lib/receipts).
+      state.collected.receiptUrl = path;
 
       const ocrAmount = await extractReceiptAmount(buffer, contentType);
       if (ocrAmount != null) state.collected.receiptOcrAmount = ocrAmount;

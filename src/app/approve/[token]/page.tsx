@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/format";
 import { ApproveActions } from "./approve-actions";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { signedReceiptUrl } from "@/lib/receipts";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,16 @@ export default async function ApprovePage({
     );
   }
 
+  // Receipts sit in a private bucket; mint short-lived links for the reviewer.
+  const receiptLinks = new Map(
+    await Promise.all(
+      pendingRows.map(async (row) => {
+        const ref = row.reimbursement_requests!.receipt_url;
+        return [row.reimbursement_requests!.id, ref ? await signedReceiptUrl(ref, 24 * 3600) : null] as const;
+      }),
+    ),
+  );
+
   const groups = new Map<string, BatchItemRow[]>();
   for (const row of pendingRows) {
     const name = row.reimbursement_requests!.submitted_by_name;
@@ -106,9 +117,9 @@ export default async function ApprovePage({
                           {formatCurrency(Number(row.reimbursement_requests!.amount))}
                         </td>
                         <td className="py-1.5 pl-2">
-                          {row.reimbursement_requests!.receipt_url ? (
+                          {receiptLinks.get(row.reimbursement_requests!.id) ? (
                             <a
-                              href={row.reimbursement_requests!.receipt_url!}
+                              href={receiptLinks.get(row.reimbursement_requests!.id)!}
                               target="_blank"
                               rel="noreferrer"
                               className="underline"

@@ -1,3 +1,5 @@
+import { downloadReceipt } from "@/lib/receipts";
+
 interface ReceiptSource {
   sequenceLabel: string;
   receiptUrl: string | null;
@@ -27,18 +29,14 @@ export async function buildReceiptAttachments(
   for (const source of sources) {
     if (!source.receiptUrl) continue;
     try {
-      const res = await fetch(source.receiptUrl);
-      if (!res.ok) {
-        console.error(
-          `Receipt download for ${source.sequenceLabel} returned ${res.status}; sending without it`,
-        );
+      const receipt = await downloadReceipt(source.receiptUrl);
+      if (!receipt) {
+        console.error(`Receipt download for ${source.sequenceLabel} failed; sending without it`);
         continue;
       }
-      const buffer = Buffer.from(await res.arrayBuffer());
-      const ext = source.receiptUrl.split(".").pop()?.split("?")[0] || "bin";
       attachments.push({
-        filename: `${source.sequenceLabel}-receipt.${ext}`,
-        content: buffer,
+        filename: `${source.sequenceLabel}-receipt.${receipt.ext}`,
+        content: receipt.buffer,
         sequenceLabel: source.sequenceLabel,
       });
     } catch (err) {
