@@ -20,19 +20,27 @@
  * for the question "what did the program cost", and wrong for the question
  * "what left the bank" — which is what the Budget vs. Actual tab answers.
  *
- * One deliberate exception to the 2026-08-09 window: the BCBS 2026 fiscal
- * sponsorship admin fee (15,000, projected, ledger-dated 2026-04-01) was added
- * to the Legal, Accounting, Insurance projected column on 2026-10-15 at
- * Aditya's request so this cohort's costs carry it. Nothing else after 08-09
- * is reflected here.
+ * Hand update 2026-10-15 (see SNAPSHOT_UPDATES): rows already counted here as
+ * projected that were confirmed paid moved to actual (actual + projected
+ * unchanged), and the BCBS 2026 admin fee was added as projected. Spending
+ * first recorded after 2026-08-09 (Sept insurance renewals, the Earthdance
+ * deposit for the next program) is deliberately NOT included.
  *
  * To refresh it: re-derive the numbers, bump SNAPSHOT_DATE, and edit the rows
  * below. Do not add the scholarship figure to the dashboard's cash totals.
  */
 
-export const SNAPSHOT_DATE = "2026-08-11";
+export const SNAPSHOT_DATE = "2026-10-15";
+/** When the snapshot was first frozen; SNAPSHOT_DATE is the latest hand update. */
+export const SNAPSHOT_FROZEN_DATE = "2026-08-11";
 export const LEDGER_WINDOW_START = "2025-02-01";
 export const LEDGER_WINDOW_END = "2026-08-09";
+export const SNAPSHOT_UPDATES: string[] = [
+  "Rupert's resident-teacher and retreat pay (15,746.00) moved from projected to actual: paid in June, found in email.",
+  "Aditya's August and September compensation (4,000.00) moved from projected to actual.",
+  "Cornerstone Q4 insurance (1,837.50) moved from projected to actual.",
+  "BCBS 2026 fiscal sponsorship admin fee (15,000.00) added as projected under Legal, Accounting, Insurance; it may be pro-rated.",
+];
 export const CSV_FILENAME = "cs_2025-26_actuals_by_budget_category.csv";
 
 /**
@@ -71,9 +79,9 @@ export const OPERATING_ROWS: SnapshotRow[] = [
     category: "Salaries",
     budget: 293316.0,
     actual2025: 57629.0,
-    actual2026: 173190.52,
-    totalActual: 230819.52,
-    stillProjected: 55221.79,
+    actual2026: 192936.52,
+    totalActual: 250565.52,
+    stillProjected: 35475.79,
     actualPlusProjected: 286041.31,
     variance: 7274.69,
     basis: "cash",
@@ -107,9 +115,9 @@ export const OPERATING_ROWS: SnapshotRow[] = [
     category: "Legal, Accounting, Insurance",
     budget: 34500.0,
     actual2025: 20017.5,
-    actual2026: 7495.13,
-    totalActual: 27512.63,
-    stillProjected: 17237.5,
+    actual2026: 9332.63,
+    totalActual: 29350.13,
+    stillProjected: 15400.0,
     actualPlusProjected: 44750.13,
     variance: -10250.13,
     basis: "cash",
@@ -169,9 +177,9 @@ export const OPERATING_SUBTOTAL: SnapshotRow = {
   category: "Total Operating Expenses (excl. Naropa & Scholarships)",
   budget: 524416.0,
   actual2025: 145731.66,
-  actual2026: 306714.36,
-  totalActual: 452446.02,
-  stillProjected: 73190.24,
+  actual2026: 328297.86,
+  totalActual: 474029.52,
+  stillProjected: 51606.74,
   actualPlusProjected: 525636.26,
   variance: -1220.26,
   basis: "cash",
@@ -210,9 +218,9 @@ export const GRAND_TOTAL: SnapshotRow = {
   category: "TOTAL incl. Naropa & Scholarships",
   budget: 749096.0,
   actual2025: 145731.66,
-  actual2026: 546974.36,
-  totalActual: 692706.02,
-  stillProjected: 93190.24,
+  actual2026: 568557.86,
+  totalActual: 714289.52,
+  stillProjected: 71606.74,
   actualPlusProjected: 785896.26,
   variance: -36800.26,
   basis: "mixed",

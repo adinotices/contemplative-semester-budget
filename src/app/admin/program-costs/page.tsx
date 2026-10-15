@@ -10,6 +10,8 @@ import {
   OPERATING_ROWS,
   OPERATING_SUBTOTAL,
   SNAPSHOT_DATE,
+  SNAPSHOT_FROZEN_DATE,
+  SNAPSHOT_UPDATES,
   TUITION_ROWS,
   type SnapshotRow,
 } from "@/lib/data/program-costs-snapshot";
@@ -146,13 +148,22 @@ function SnapshotBanner() {
           Frozen snapshot
         </span>
         <span className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
-          Last updated {formatDate(SNAPSHOT_DATE)}
+          Frozen {formatDate(SNAPSHOT_FROZEN_DATE)} · updated by hand {formatDate(SNAPSHOT_DATE)}
         </span>
       </div>
       <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
         These figures are hand-entered and do not update when the ledger changes. The other tabs are live; this
-        one is a fixed restatement produced for an outside reader, and it will keep showing the numbers as of the
-        date above until someone edits it.
+        one is a fixed restatement produced for an outside reader. It was frozen with ledger data through{" "}
+        {formatDate(LEDGER_WINDOW_END)}, then updated by hand on {formatDate(SNAPSHOT_DATE)} once later email
+        confirmed payments and a new cost:
+      </p>
+      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-600 dark:text-neutral-400">
+        {SNAPSHOT_UPDATES.map((u) => (
+          <li key={u}>{u}</li>
+        ))}
+      </ul>
+      <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+        Spending first recorded after {formatDate(LEDGER_WINDOW_END)} is otherwise not included here.
       </p>
     </div>
   );
