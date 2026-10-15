@@ -22,7 +22,7 @@
  *
  * Hand update 2026-10-15 (see SNAPSHOT_UPDATES): rows already counted here as
  * projected that were confirmed paid moved to actual (actual + projected
- * unchanged), and the BCBS 2026 admin fee was added as projected. Spending
+ * unchanged, except Michelle Chai's bonus, which settled 470.89 lower), and the BCBS 2026 admin fee was added as projected. Spending
  * first recorded after 2026-08-09 (Sept insurance renewals, the Earthdance
  * deposit for the next program) is deliberately NOT included.
  *
@@ -38,6 +38,7 @@ export const LEDGER_WINDOW_END = "2026-08-09";
 export const SNAPSHOT_UPDATES: string[] = [
   "Rupert's resident-teacher and retreat pay (15,746.00) moved from projected to actual: paid in June, found in email.",
   "Brent Beresford's mentoring and insight-dialogue payment (800.00) moved from projected to actual: Melissa sent the Wise confirmation on 2026-06-16.",
+  "Michelle Chai's projected 4,540.79 bonus replaced by the 4,069.90 actually paid for extra semester hours (posted 2026-06-08); the 470.89 difference was never owed.",
   "Aditya's August and September compensation (4,000.00) moved from projected to actual.",
   "Cornerstone Q4 insurance (1,837.50) moved from projected to actual.",
   "Mark Davis photography (400.00) moved from projected to actual: set up in BILL by 2026-07-01; Aditya is confirming receipt with Mark.",
@@ -81,11 +82,11 @@ export const OPERATING_ROWS: SnapshotRow[] = [
     category: "Salaries",
     budget: 293316.0,
     actual2025: 57629.0,
-    actual2026: 193736.52,
-    totalActual: 251365.52,
-    stillProjected: 34675.79,
-    actualPlusProjected: 286041.31,
-    variance: 7274.69,
+    actual2026: 197806.42,
+    totalActual: 255435.42,
+    stillProjected: 30135.0,
+    actualPlusProjected: 285570.42,
+    variance: 7745.58,
     basis: "cash",
     notes: "incl. pre-semester; budget = 183,316 semester + 110,000 pre-semester",
   },
@@ -179,11 +180,11 @@ export const OPERATING_SUBTOTAL: SnapshotRow = {
   category: "Total Operating Expenses (excl. Naropa & Scholarships)",
   budget: 524416.0,
   actual2025: 145731.66,
-  actual2026: 329497.86,
-  totalActual: 475229.52,
-  stillProjected: 50406.74,
-  actualPlusProjected: 525636.26,
-  variance: -1220.26,
+  actual2026: 333567.76,
+  totalActual: 479299.42,
+  stillProjected: 45865.95,
+  actualPlusProjected: 525165.37,
+  variance: -749.37,
   basis: "cash",
   notes: "",
 };
@@ -220,11 +221,11 @@ export const GRAND_TOTAL: SnapshotRow = {
   category: "TOTAL incl. Naropa & Scholarships",
   budget: 749096.0,
   actual2025: 145731.66,
-  actual2026: 569757.86,
-  totalActual: 715489.52,
-  stillProjected: 70406.74,
-  actualPlusProjected: 785896.26,
-  variance: -36800.26,
+  actual2026: 573827.76,
+  totalActual: 719559.42,
+  stillProjected: 65865.95,
+  actualPlusProjected: 785425.37,
+  variance: -36329.37,
   basis: "mixed",
   notes: "",
 };
