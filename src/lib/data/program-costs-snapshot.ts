@@ -22,7 +22,8 @@
  *
  * Hand update 2026-10-15 (see SNAPSHOT_UPDATES): rows already counted here as
  * projected that were confirmed paid moved to actual (actual + projected
- * unchanged, except Michelle Chai's bonus, which settled 470.89 lower), and the BCBS 2026 admin fee and Maya's 2,100 backpay were added as projected. Spending
+ * unchanged, except Michelle Chai's bonus, which settled 470.89 lower), the BCBS 2026 admin fee and Maya's 2,100 backpay were added as projected,
+ * and the Shea & Maya backpay projection was cut from 30,135 to 12,235. Spending
  * first recorded after 2026-08-09 (Sept insurance renewals, the Earthdance
  * deposit for the next program) is deliberately NOT included.
  *
@@ -42,7 +43,8 @@ export const SNAPSHOT_UPDATES: string[] = [
   "Aditya's August and September compensation (4,000.00) moved from projected to actual.",
   "Cornerstone Q4 insurance (1,837.50) moved from projected to actual.",
   "Mark Davis photography (400.00) moved from projected to actual: set up in BILL by 2026-07-01; Aditya is confirming receipt with Mark.",
-  "Backpay for Maya Park (2,100.00) added as projected under Salaries, separate from the 30,135.00 Shea & Maya backpay.",
+  "Backpay for Maya Park (2,100.00) added as projected under Salaries.",
+  "Projected Shea & Maya backpay reduced from 30,135.00 to 12,235.00.",
   "BCBS 2026 fiscal sponsorship admin fee (15,000.00) added as projected under Legal, Accounting, Insurance; it may be pro-rated.",
 ];
 export const CSV_FILENAME = "cs_2025-26_actuals_by_budget_category.csv";
@@ -85,9 +87,9 @@ export const OPERATING_ROWS: SnapshotRow[] = [
     actual2025: 57629.0,
     actual2026: 197806.42,
     totalActual: 255435.42,
-    stillProjected: 32235.0,
-    actualPlusProjected: 287670.42,
-    variance: 5645.58,
+    stillProjected: 14335.0,
+    actualPlusProjected: 269770.42,
+    variance: 23545.58,
     basis: "cash",
     notes: "incl. pre-semester; budget = 183,316 semester + 110,000 pre-semester",
   },
@@ -183,9 +185,9 @@ export const OPERATING_SUBTOTAL: SnapshotRow = {
   actual2025: 145731.66,
   actual2026: 333567.76,
   totalActual: 479299.42,
-  stillProjected: 47965.95,
-  actualPlusProjected: 527265.37,
-  variance: -2849.37,
+  stillProjected: 30065.95,
+  actualPlusProjected: 509365.37,
+  variance: 15050.63,
   basis: "cash",
   notes: "",
 };
@@ -224,9 +226,9 @@ export const GRAND_TOTAL: SnapshotRow = {
   actual2025: 145731.66,
   actual2026: 573827.76,
   totalActual: 719559.42,
-  stillProjected: 67965.95,
-  actualPlusProjected: 787525.37,
-  variance: -38429.37,
+  stillProjected: 50065.95,
+  actualPlusProjected: 769625.37,
+  variance: -20529.37,
   basis: "mixed",
   notes: "",
 };
