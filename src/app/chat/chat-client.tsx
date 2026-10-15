@@ -244,9 +244,7 @@ export function ChatClient({ isAdmin, initialConversations, initialConversationI
               </div>
             </div>
           ))}
-          {loading && (
-            <p className="text-sm text-neutral-400 dark:text-neutral-500">Thinking with {modelLabel(model)}…</p>
-          )}
+          {loading && <ThinkingIndicator label={modelLabel(model)} />}
           {error && (
             <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
               {error}
@@ -294,6 +292,37 @@ export function ChatClient({ isAdmin, initialConversations, initialConversationI
           </div>
         </form>
       </section>
+    </div>
+  );
+}
+
+/**
+ * Bouncing dots plus an elapsed-seconds counter. Answers routinely take 20-30 s,
+ * and a static "Thinking..." line can't be told apart from a hung request; the
+ * ticking counter still shows progress when reduced motion stops the dots.
+ */
+function ThinkingIndicator({ label }: { label: string }) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const id = setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-neutral-400 dark:text-neutral-500">
+      <span className="flex gap-1" aria-hidden="true">
+        {[0, 150, 300].map((delay) => (
+          <span
+            key={delay}
+            className="h-1.5 w-1.5 rounded-full bg-neutral-400 motion-safe:animate-bounce dark:bg-neutral-500"
+            style={{ animationDelay: `${delay}ms` }}
+          />
+        ))}
+      </span>
+      <span>
+        Thinking with {label}
+        <span className="tabular-nums" aria-hidden="true"> · {seconds}s</span>
+      </span>
     </div>
   );
 }
