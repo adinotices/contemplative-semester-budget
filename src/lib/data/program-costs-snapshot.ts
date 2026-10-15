@@ -20,6 +20,12 @@
  * for the question "what did the program cost", and wrong for the question
  * "what left the bank" — which is what the Budget vs. Actual tab answers.
  *
+ * One deliberate exception to the 2026-08-09 window: the BCBS 2026 fiscal
+ * sponsorship admin fee (15,000, projected, ledger-dated 2026-04-01) was added
+ * to the Legal, Accounting, Insurance projected column on 2026-10-15 at
+ * Aditya's request so this cohort's costs carry it. Nothing else after 08-09
+ * is reflected here.
+ *
  * To refresh it: re-derive the numbers, bump SNAPSHOT_DATE, and edit the rows
  * below. Do not add the scholarship figure to the dashboard's cash totals.
  */
@@ -103,11 +109,11 @@ export const OPERATING_ROWS: SnapshotRow[] = [
     actual2025: 20017.5,
     actual2026: 7495.13,
     totalActual: 27512.63,
-    stillProjected: 2237.5,
-    actualPlusProjected: 29750.13,
-    variance: 4749.87,
+    stillProjected: 17237.5,
+    actualPlusProjected: 44750.13,
+    variance: -10250.13,
     basis: "cash",
-    notes: "",
+    notes: "projected incl. BCBS 2026 admin fee 15,000 (added 2026-10-15; may be pro-rated)",
   },
   {
     category: "Supplies & Subscriptions",
@@ -165,9 +171,9 @@ export const OPERATING_SUBTOTAL: SnapshotRow = {
   actual2025: 145731.66,
   actual2026: 306714.36,
   totalActual: 452446.02,
-  stillProjected: 58190.24,
-  actualPlusProjected: 510636.26,
-  variance: 13779.74,
+  stillProjected: 73190.24,
+  actualPlusProjected: 525636.26,
+  variance: -1220.26,
   basis: "cash",
   notes: "",
 };
@@ -206,9 +212,9 @@ export const GRAND_TOTAL: SnapshotRow = {
   actual2025: 145731.66,
   actual2026: 546974.36,
   totalActual: 692706.02,
-  stillProjected: 78190.24,
-  actualPlusProjected: 770896.26,
-  variance: -21800.26,
+  stillProjected: 93190.24,
+  actualPlusProjected: 785896.26,
+  variance: -36800.26,
   basis: "mixed",
   notes: "",
 };

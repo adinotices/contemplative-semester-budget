@@ -66,9 +66,10 @@ export default function ProgramCostsPage() {
 
           <p className="mt-4 text-xs text-neutral-500 dark:text-neutral-400">
             Variance is budget minus (actual + projected), so a positive number means under budget. Operating
-            expenses come in {formatCurrency(OPERATING_SUBTOTAL.variance ?? 0)} under budget; the{" "}
-            {formatCurrency(Math.abs(GRAND_TOTAL.variance ?? 0))} overage on the grand total is entirely the
-            scholarship line.
+            expenses come in {formatCurrency(Math.abs(OPERATING_SUBTOTAL.variance ?? 0))}{" "}
+            {(OPERATING_SUBTOTAL.variance ?? 0) >= 0 ? "under" : "over"} budget, including the projected 2026 BCBS
+            admin fee; most of the {formatCurrency(Math.abs(GRAND_TOTAL.variance ?? 0))} overage on the grand
+            total is the scholarship line.
           </p>
         </section>
 
