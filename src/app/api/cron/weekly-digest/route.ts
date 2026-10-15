@@ -17,7 +17,9 @@ const TOKEN_TTL_DAYS = 7;
  */
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Fail closed: this route is outside the session gate, so a missing
+  // CRON_SECRET must not leave it callable by anyone.
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

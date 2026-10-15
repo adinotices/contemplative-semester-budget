@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 
+// Each /api entry here authenticates itself instead of using a session:
+// /api/reimburse is the public form's endpoint (validated input only),
+// /api/cron/* checks CRON_SECRET, and the webhooks verify their signatures.
+// Before /api/reimburse and /api/cron were listed, both were redirected to
+// /login, so the public form could never submit and Vercel Cron never ran.
 const PUBLIC_PATHS = [
   "/login",
   "/reimburse",
+  "/api/reimburse",
+  "/api/cron/",
   "/api/auth",
   "/api/whatsapp/webhook",
   "/api/email/inbound",

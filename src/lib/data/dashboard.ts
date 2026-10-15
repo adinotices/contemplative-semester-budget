@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { selectAll } from "@/lib/supabase/select-all";
 
 export interface CashPosition {
   startingBalance: number;
@@ -58,7 +59,9 @@ async function getOrgSetting(key: string): Promise<number> {
 export async function getCashPosition(): Promise<CashPosition> {
   const db = supabaseAdmin();
   const [{ data, error }, startingBalance, remainingBalanceTarget] = await Promise.all([
-    db.from("transactions").select("direction, amount").eq("status", "actual"),
+    selectAll((from, to) =>
+      db.from("transactions").select("direction, amount").eq("status", "actual").order("id").range(from, to),
+    ),
     getOrgSetting("starting_balance"),
     getOrgSetting("remaining_balance_target"),
   ]);
@@ -86,10 +89,9 @@ export async function getCashPosition(): Promise<CashPosition> {
  */
 export async function getProjectedTotals(cash: CashPosition): Promise<ProjectedTotals> {
   const db = supabaseAdmin();
-  const { data, error } = await db
-    .from("transactions")
-    .select("direction, amount")
-    .eq("status", "projected");
+  const { data, error } = await selectAll((from, to) =>
+    db.from("transactions").select("direction, amount").eq("status", "projected").order("id").range(from, to),
+  );
   if (error) throw error;
 
   let projectedIncome = 0;
@@ -115,7 +117,9 @@ export async function getBudgetVsActual(): Promise<CategoryActual[]> {
   const [{ data: categories, error: catErr }, { data: transactions, error: txErr }] =
     await Promise.all([
       db.from("budget_categories").select("name, type, budget_target, notes"),
-      db.from("transactions").select("category, direction, amount, status"),
+      selectAll((from, to) =>
+        db.from("transactions").select("category, direction, amount, status").order("id").range(from, to),
+      ),
     ]);
   if (catErr) throw catErr;
   if (txErr) throw txErr;
@@ -364,34 +368,56 @@ export async function getReconciliationSummary(): Promise<ReconciliationSummary>
     { data: projectedExpTxns, error: projectedExpErr },
     { data: throughPlDateTxns, error: throughPlDateErr },
   ] = await Promise.all([
-    db.from("transactions").select("date, direction, amount").eq("status", "actual"),
-    db.from("bcbs_transactions").select("date, description, amount"),
+    selectAll((from, to) =>
+      db.from("transactions").select("date, direction, amount").eq("status", "actual").order("id").range(from, to),
+    ),
+    selectAll((from, to) =>
+      db.from("bcbs_transactions").select("date, description, amount").order("id").range(from, to),
+    ),
     db.from("reconciliation_matches").select("id", { count: "exact", head: true }).eq("status", "matched"),
     getOrgSetting("starting_balance"),
-    db
-      .from("transactions")
-      .select("direction, amount")
-      .eq("status", "actual")
-      .gte("date", BCBS_ACCRUAL_WINDOW_START)
-      .lte("date", BCBS_ACCRUAL_WINDOW_END),
-    db
-      .from("transactions")
-      .select("direction, amount")
-      .eq("status", "actual")
-      .lte("date", BCBS_RESTRICTED_FUND_ASOF),
-    db
-      .from("transactions")
-      .select("category, direction, amount")
-      .eq("status", "actual")
-      .eq("direction", "income")
-      .gte("date", BCBS_ACCRUAL_WINDOW_START)
-      .lte("date", BCBS_ACCRUAL_WINDOW_END),
-    db.from("transactions").select("amount").eq("status", "projected").eq("direction", "expense"),
-    db
-      .from("transactions")
-      .select("direction, amount")
-      .eq("status", "actual")
-      .lte("date", BCBS_ACCRUAL_WINDOW_END),
+    selectAll((from, to) =>
+      db
+        .from("transactions")
+        .select("direction, amount")
+        .eq("status", "actual")
+        .gte("date", BCBS_ACCRUAL_WINDOW_START)
+        .lte("date", BCBS_ACCRUAL_WINDOW_END)
+        .order("id")
+        .range(from, to),
+    ),
+    selectAll((from, to) =>
+      db
+        .from("transactions")
+        .select("direction, amount")
+        .eq("status", "actual")
+        .lte("date", BCBS_RESTRICTED_FUND_ASOF)
+        .order("id")
+        .range(from, to),
+    ),
+    selectAll((from, to) =>
+      db
+        .from("transactions")
+        .select("category, direction, amount")
+        .eq("status", "actual")
+        .eq("direction", "income")
+        .gte("date", BCBS_ACCRUAL_WINDOW_START)
+        .lte("date", BCBS_ACCRUAL_WINDOW_END)
+        .order("id")
+        .range(from, to),
+    ),
+    selectAll((from, to) =>
+      db.from("transactions").select("amount").eq("status", "projected").eq("direction", "expense").order("id").range(from, to),
+    ),
+    selectAll((from, to) =>
+      db
+        .from("transactions")
+        .select("direction, amount")
+        .eq("status", "actual")
+        .lte("date", BCBS_ACCRUAL_WINDOW_END)
+        .order("id")
+        .range(from, to),
+    ),
   ]);
   if (txErr) throw txErr;
   if (bcbsErr) throw bcbsErr;

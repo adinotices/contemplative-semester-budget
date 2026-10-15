@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { selectAll } from "@/lib/supabase/select-all";
 
 /**
  * Builds the data context handed to Claude for /chat, scoped per §7:
@@ -34,11 +35,14 @@ export async function buildChatContext(role: string): Promise<string> {
 
   const [{ data: transactions }, { data: staffComp }, { data: students }, { data: reimbursements }] =
     await Promise.all([
-      db
-        .from("transactions")
-        .select("date, direction, category, payee, description, amount, status")
-        .order("date", { ascending: false })
-        .limit(1000),
+      selectAll((from, to) =>
+        db
+          .from("transactions")
+          .select("date, direction, category, payee, description, amount, status")
+          .order("date", { ascending: false })
+          .order("id")
+          .range(from, to),
+      ),
       db.from("staff_compensation").select("staff_name, period, amount, status"),
       db
         .from("students")
