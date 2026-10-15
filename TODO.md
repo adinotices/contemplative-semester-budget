@@ -8,7 +8,7 @@ Open items for the budget app and the ledger. Newest first. Move finished items 
 - [ ] **Find the ~$234 insurance refund check** mailed to Aditya (lost). Lynn Trombly asked on 9/21 that he search before she arranges a stop-payment and reissue. Ledger row: projected, `Insurance Refund`, 2026-09-21.
 - [ ] **BCBS 2026 admin fee**: Melissa proposed $15,000; Shea asked 10/13 to pro-rate Apr–Dec 2026. Ledger has it projected at $15,000 on 2026-04-01 (also in the Program Costs snapshot). Update both when Melissa confirms the amount.
 
-- [ ] **Confirm or drop the remaining projected rows** ($50,065.95 expense, $7,034 income as of 2026-10-15). There's no email confirming any of these. The Gmail connector can't read attachments, so payment screenshots (the kind that confirmed Brent's) are invisible to it.
+- [ ] **Confirm or drop the remaining projected rows** ($50,229.19 expense, $7,034 income as of 2026-10-15). There's no email confirming any of these. The Gmail connector can't read attachments, so payment screenshots (the kind that confirmed Brent's) are invisible to it.
   - Naropa pass-through, 10 × $2,000 = $20,000: current-cohort credit fees owed to Naropa; nothing shows they were sent.
   - Backpay for Shea & Maya $12,235 (cut from $30,135 on 10/15); no email trail. Plus Maya's separate $2,100 backpay (projected, 2025-12-31, added 10/15).
   - Small items: Potash storage balance $400, Mailchimp $261.37 (Shea), stamps $65.60 (Maya), Luc media storage 2 × $1.99.
