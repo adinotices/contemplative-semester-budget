@@ -15,6 +15,9 @@ Open items for the budget app and the ledger. Newest first. Move finished items 
   - Income: Meera Kochhar $2,500 and Amiya Fornés-Sicam $3,300 (Aditya is chasing both, per Shea 10/13), Potash deposit refund $1,000, insurance refund ~$234.
 - [ ] **Ask Meredith/Melissa for a BCBS ledger export after 2026-04-28.** The app's BCBS data stops there, and that export alone would settle most of the list above in one pass.
 
+- [ ] **Maya's $1,715 coaching submission (form, 2026-10-15 13:05)**: not added. It came 41 s before a $1,750 submission for the same coach, and the ledger already has "Coaching (Venmo)" $1,714 actual for Maya (2026-05-21). Likely a duplicate or typo; Aditya to confirm before adding.
+- Note: October form submissions (Shea Claude $65.34 + Zoom $190.86, Maya coaching $1,750) are in the ledger as projected but deliberately NOT in the Program Costs snapshot (post-cohort spending), so ledger projected ($52,235.39) now exceeds the snapshot ($50,229.19) by exactly $2,006.20.
+
 ## App
 
 - [ ] **Stop the app from auto-pausing.** Still happening as of 2026-10-15. First find out which layer pauses: Supabase free-tier projects pause after ~7 days without DB activity (the likely cause), whereas Vercel Hobby doesn't pause deployments. Note: `vercel.json` already runs `/api/cron/weekly-digest` every Monday 13:00 UTC, which queries the DB. That should keep a 7-day idle timer from firing, so check the Supabase dashboard for the actual pause events before assuming that's the cause. Fixes, depending on the cause: a daily Vercel cron that runs a cheap query, or moving the Supabase project to a paid plan.
