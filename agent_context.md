@@ -4,7 +4,7 @@ Working notes on what's built, what's provisioned, and what's left. Read
 `docs/architecture.md` first for the full spec this was built from; this file
 tracks *implementation status* against that spec, not the spec itself.
 
-Last updated: 2026-08-10 (§2l: May/June/July compensation reconciled from Gmail — see below. **Read §3b before touching the numbers: monthly compensation conversion is a standing task that has silently overstated cash twice.**)
+Last updated: 2026-10-15 (§2u: Aug/Sep compensation, Cornerstone Q4, Earthdance deposit; /chat work promoted to prod. **Read §3b before touching the numbers: monthly compensation conversion is a standing task that has silently overstated cash twice.**)
 
 ---
 
@@ -562,6 +562,21 @@ preview; design in `docs/superpowers/specs/2026-10-13-chat-model-picker-and-hist
   Still not exercised end to end from this sandbox (Google sign-in); Aditya's
   click-through on the staging preview is the acceptance test.
 
+## 2u. October catch-up from the CS inbox; /chat promoted (2026-10-15)
+
+Gmail connector now reads aditya@contemplativesemester.org (earlier sessions only had the personal account). DB writes went through PostgREST with a service-role key Aditya pasted in-session (not saved anywhere; he should rotate it). The Supabase MCP connector and the amberhall `SUPABASE_ACCESS_TOKEN` (403: different account) could not reach this project.
+
+Applied (Aditya approved each):
+- Aug compensation → actual 2026-08-28; Sep → actual 2026-09-30 (request dates). `staff_compensation`: Actual 20,300 → 24,300, Projected 4,000 → 0; ledger and tab agree at 24,300.
+- Cornerstone Q4 $1,837.50 → actual 2026-09-24 (INV-1436, posted 9/25), payee Cornerstone Safety Group.
+- New: Earthdance venue deposit $4,000, Facilities, actual 2026-08-17 (requested + posted same day; check mailed, ETA 8/25).
+
+Context: on 2026-10-01 Shea told Melissa CS is winding down its org under BCBS (pending a new fiscal sponsor, likely Dharma Gates). All insurance was cancelled/non-renewed as of 10/1/26 except a 1-year D&O discovery period ($258 + SL tax). Expect refunds and close-out items rather than new program spending.
+
+Open money items found in mail (see §4 / the reply to Aditya for status): Hardon GL/PL extension $821.70 (posted 9/3), Amwins D&O renewal $1,142.25 (requested 9/13, cleared 9/15), AmTrust WC $757 (Melissa paid by e-check 9/11 from acct 4355): none were in the ledger. D&O cancellation return premium + ERP invoice 209774: Jaycel asked 10/12 whether to net them, waiting on Aditya. ~$234 premium refund check mailed to Aditya and lost; Lynn asked him to search before a stop-payment. BCBS 2026 admin fee: Melissa proposed $15,000, Shea asked to pro-rate Apr–Dec; unresolved. Erin's gift report unchanged 8/31 → 9/30 (31 records, $193,882.76), so there are no new gifts. Potash Hill $1,000 deposit refund still not found, stays projected.
+
+/chat (§2s, §2t) promoted: `main` fast-forwarded to 7c8616e, Vercel prod READY, 13/13 unit tests green, migration 0009 tables + spend cap confirmed in prod. Chat tables were empty at promotion, so no human had used it on staging; the first real use is in prod.
+
 ## 2. Infrastructure — provisioned so far
 
 **Supabase** (via Supabase MCP connector):
@@ -717,7 +732,7 @@ update staff_compensation set amount = amount - <converted>  where staff_name='A
 1. **Don't convert a placeholder without checking for an existing actual row in the same window.** On 2026-08-10 the user believed an actual row dated 2026-06-17 was May's; it was June's, entered with a rough date. Converting the May placeholder on top of it would have double-counted $2,000 and left June with no row at all. The request-date rule above is what disambiguates — use it, not the service month.
 2. **"Posted in BILL" is not "paid."** Jaycel distinguishes them (cf. the Cornerstone thread: *"the payment has already cleared our bank and was processed on June 25"*). The ledger's working convention treats her posting confirmation as sufficient for `actual`; that's the user's call, but be aware it's a convention, not a bank fact.
 
-Next expected: **August compensation**, requestable from ~2026-09-01, placeholder already sits at `2026-08-01`. September follows at `2026-09-01`.
+Done through **September 2026** (converted 2026-10-15, see §2u). The placeholder notes say compensation runs "through Sept 2026", so no October placeholder exists; if Aditya keeps requesting it, insert new `actual` rows per request instead of converting.
 
 ## 4. Next steps, roughly in order
 
